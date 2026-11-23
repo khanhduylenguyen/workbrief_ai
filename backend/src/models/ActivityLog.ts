@@ -11,6 +11,10 @@ export const ACTIVITY_ACTIONS = [
   'CHECKLIST_TOGGLED',
   'ZALO_TASK_CREATED',
   'WEBHOOK_KEY_REGENERATED',
+  'GMAIL_CONNECTED',
+  'GMAIL_DISCONNECTED',
+  'GMAIL_SYNCED',
+  'GMAIL_TASK_CREATED',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

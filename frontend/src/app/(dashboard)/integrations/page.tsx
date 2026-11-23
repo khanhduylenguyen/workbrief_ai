@@ -1,14 +1,24 @@
 "use client";
 
-import { CheckCircle2, Eye, EyeOff, Info, Mail, MessageCircle, RefreshCw, Send, Sparkles, XCircle } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, Eye, EyeOff, Info, Mail, MessageCircle, Puzzle, RefreshCw, Send, Sparkles, Unplug, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { CopyButton } from "@/components/CopyButton";
+import { GmailSyncButton } from "@/components/GmailSyncButton";
 import { PriorityBadge } from "@/components/tasks/TaskBadges";
 import { Badge, Button, Card, ErrorBox, Field, Input, PageHeader, PageLoader, Textarea } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { useIntegrations, useRegenerateWebhookKey, useSimulateZalo } from "@/lib/queries";
-import type { Task } from "@/lib/types";
+import {
+  qk,
+  useGmailConnect,
+  useGmailDisconnect,
+  useIntegrations,
+  useRegenerateWebhookKey,
+  useSimulateZalo,
+} from "@/lib/queries";
+import type { GmailSyncResult, Task } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
 
 const SAMPLE_MESSAGE =
@@ -22,6 +32,28 @@ export default function IntegrationsPage() {
   const [showKey, setShowKey] = useState(false);
   const [sim, setSim] = useState({ senderName: "", senderPhone: "", groupName: "", message: "" });
   const [created, setCreated] = useState<{ task: Task; isMock: boolean } | null>(null);
+  const connect = useGmailConnect();
+  const disconnect = useGmailDisconnect();
+  const [syncResult, setSyncResult] = useState<GmailSyncResult | null>(null);
+
+  async function onConnect() {
+    try {
+      await connect.mutateAsync(); // navigates away to Google on success
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  async function onDisconnect() {
+    if (!window.confirm("Ngắt kết nối Gmail? WorkBrief AI sẽ không đọc được email của bạn nữa (các task đã tạo vẫn giữ nguyên).")) return;
+    try {
+      const { message } = await disconnect.mutateAsync();
+      setSyncResult(null);
+      toast.success(message);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
 
   if (overview.isLoading) return <PageLoader />;
   if (overview.isError || !overview.data) {
@@ -63,9 +95,54 @@ export default function IntegrationsPage() {
     <>
       <PageHeader title="Gmail & Zalo" description="Kết nối nguồn công việc để AI tự tóm tắt và tạo việc cho bạn." />
 
+      {/* Reads ?gmail=connected|error after the Google OAuth redirect (useSearchParams needs Suspense). */}
+      <Suspense fallback={null}>
+        <GmailCallbackNotice />
+      </Suspense>
+
+      {syncResult && (
+        <Card className="mb-4 border-emerald-200 bg-emerald-50/50 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                <CheckCircle2 className="h-4 w-4" /> Kết quả đồng bộ Gmail
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Quét {syncResult.scanned} email · tạo {syncResult.created} task · bỏ qua {syncResult.skippedExisting} đã có
+                {syncResult.failed > 0 && <> · {syncResult.failed} lỗi</>}
+                {syncResult.quotaExhausted && <span className="font-medium text-rose-600"> · dừng vì hết lượt AI</span>}
+              </p>
+            </div>
+            <button type="button" onClick={() => setSyncResult(null)} className="cursor-pointer text-slate-400 hover:text-slate-600" aria-label="Đóng">
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+          {syncResult.tasks.length > 0 && (
+            <ul className="mt-3 space-y-1.5">
+              {syncResult.tasks.map((t) => (
+                <li key={t._id} className="flex items-center gap-2 text-sm">
+                  <PriorityBadge priority={t.priority} />
+                  <span className="truncate font-medium text-slate-800">{t.title}</span>
+                  <span className="truncate text-xs text-slate-400">— {t.from}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {syncResult.scanned === 0 && (
+            <p className="mt-2 text-xs text-slate-500">
+              Không có email phù hợp. Hãy thêm email đồng nghiệp vào{" "}
+              <Link href="/colleagues" className="text-indigo-600 hover:underline">
+                danh bạ
+              </Link>{" "}
+              hoặc gắn nhãn <code>{gmail.syncLabel}</code> cho email trong Gmail.
+            </p>
+          )}
+        </Card>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Gmail */}
-        <Card className="p-5">
+        <Card className="flex flex-col p-5">
           <CardHead icon={<Mail className="h-5 w-5 text-red-500" />} iconBg="bg-red-50" title="Gmail" status={gmail.isConnected} />
           <p className="mt-3 text-sm text-slate-600">
             {gmail.isConnected ? (
@@ -73,17 +150,40 @@ export default function IntegrationsPage() {
                 Đã kết nối với <span className="font-medium text-slate-900">{gmail.email}</span>
               </>
             ) : (
-              "Kết nối Gmail qua Google OAuth để AI tự đọc email được giao việc và tạo task."
+              "Kết nối Gmail qua Google OAuth (chỉ quyền đọc) để AI tóm tắt email được giao việc thành task."
             )}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Đồng bộ email trong {gmail.syncNewerThanDays} ngày gần nhất <b>gửi từ đồng nghiệp trong danh bạ</b> hoặc có nhãn{" "}
+            <code className="rounded bg-slate-100 px-1">{gmail.syncLabel}</code>, tối đa {gmail.syncMaxMessages} email/lần. Mỗi email mới
+            dùng 1 lượt AI; email đã đồng bộ sẽ không bị tạo trùng.
           </p>
           <dl className="mt-4 space-y-1.5 text-xs text-slate-500">
             <Row label="Task từ Gmail" value={gmail.taskCount} />
-            <Row label="Task gần nhất" value={formatDateTime(gmail.lastTaskAt)} />
+            <Row label="Đồng bộ gần nhất" value={formatDateTime(gmail.lastSyncedAt)} />
           </dl>
-          <Button variant="outline" className="mt-4 w-full" disabled title="Luồng Google OAuth chưa được triển khai ở Backend">
-            <Mail className="h-4 w-4" /> {gmail.isConnected ? "Ngắt kết nối" : "Kết nối Gmail (OAuth)"}
-          </Button>
-          <p className="mt-2 text-center text-[11px] text-slate-400">Google OAuth sẽ được bật ở phiên bản tới.</p>
+
+          <div className="mt-auto space-y-2 pt-4">
+            {!gmail.configured ? (
+              <div className="flex gap-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                <Info className="h-4 w-4 shrink-0" />
+                <span>
+                  Backend chưa cấu hình <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code>.
+                </span>
+              </div>
+            ) : gmail.isConnected ? (
+              <>
+                <GmailSyncButton variant="primary" onSynced={setSyncResult} />
+                <Button variant="ghost" size="sm" className="w-full text-slate-500 hover:text-rose-600" onClick={onDisconnect} loading={disconnect.isPending}>
+                  <Unplug className="h-3.5 w-3.5" /> Ngắt kết nối Gmail
+                </Button>
+              </>
+            ) : (
+              <Button className="w-full" onClick={onConnect} loading={connect.isPending}>
+                {!connect.isPending && <Mail className="h-4 w-4" />} Kết nối Gmail
+              </Button>
+            )}
+          </div>
         </Card>
 
         {/* Zalo */}
@@ -122,6 +222,17 @@ export default function IntegrationsPage() {
             <Row label="Task từ Zalo" value={zalo.taskCount} />
             <Row label="Task gần nhất" value={formatDateTime(zalo.lastTaskAt)} />
           </dl>
+          <div className="mt-4 flex gap-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3 text-xs leading-relaxed text-slate-600">
+            <Puzzle className="h-4 w-4 shrink-0 text-blue-500" />
+            <div>
+              <p className="font-medium text-slate-800">Chrome Extension “WorkBrief AI – Zalo”</p>
+              <p className="mt-0.5">
+                Mở <code>chrome://extensions</code> → bật <i>Developer mode</i> → <i>Load unpacked</i> → chọn thư mục{" "}
+                <code>zalo-extension</code>. Dán <b>Webhook URL</b> và <b>key</b> ở trên vào popup của extension. Trên{" "}
+                <code>chat.zalo.me</code>, bôi đen tin nhắn → chuột phải → <b>Gửi vào WorkBrief AI</b>.
+              </p>
+            </div>
+          </div>
         </Card>
       </div>
 
@@ -211,6 +322,27 @@ export default function IntegrationsPage() {
       </div>
     </>
   );
+}
+
+function GmailCallbackNotice() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const status = params.get("gmail");
+  const email = params.get("email");
+  const message = params.get("message");
+
+  useEffect(() => {
+    if (!status) return;
+    if (status === "connected") toast.success(`Đã kết nối Gmail${email ? ` ${email}` : ""}. Bấm "Đồng bộ Gmail ngay" để lấy công việc.`);
+    else toast.error(message ?? "Kết nối Gmail thất bại.");
+    qc.invalidateQueries({ queryKey: qk.integrations });
+    qc.invalidateQueries({ queryKey: qk.me });
+    router.replace("/integrations"); // drop the query string so a refresh doesn't re-toast
+  }, [status, email, message, toast, qc, router]);
+
+  return null;
 }
 
 function CardHead({ icon, iconBg, title, status, label }: { icon: ReactNode; iconBg: string; title: string; status: boolean; label?: string }) {

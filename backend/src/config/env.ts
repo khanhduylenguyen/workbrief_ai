@@ -24,6 +24,16 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD must be at least 8 characters'),
   ADMIN_FULL_NAME: z.string().min(1).default('WorkBrief Admin'),
 
+  // Where the browser is sent back to after the Google OAuth callback.
+  FRONTEND_URL: z.string().default('http://localhost:8080'),
+
+  GOOGLE_CLIENT_ID: z.string().optional().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
+  GOOGLE_REDIRECT_URI: z.string().default('http://localhost:8081/api/integrations/gmail/callback'),
+  GMAIL_SYNC_LABEL: z.string().default('WorkBrief'),
+  GMAIL_SYNC_MAX_MESSAGES: z.coerce.number().int().min(1).max(50).default(10),
+  GMAIL_SYNC_NEWER_THAN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+
   GEMINI_API_KEY: z.string().optional().default(''),
   GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
   AI_MOCK_FALLBACK: booleanString.default(true),

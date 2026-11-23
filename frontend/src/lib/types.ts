@@ -85,6 +85,7 @@ export interface Task {
   deadline: string | null;
   completedAt: string | null;
   incompleteReason: string | null;
+  externalMessageId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,9 +113,38 @@ export interface AiSummary {
   quota: { used: number; limit: number; remaining: number };
 }
 
+export interface GmailSyncResult {
+  query: string;
+  scanned: number;
+  created: number;
+  skippedExisting: number;
+  failed: number;
+  quotaExhausted: boolean;
+  tasks: { _id: string; title: string; from: string; priority: TaskPriority }[];
+  errors: string[];
+}
+
 export interface IntegrationOverview {
-  gmail: { isConnected: boolean; email: string | null; taskCount: number; lastTaskAt: string | null };
-  zalo: { webhookUrl: string; webhookApiKey: string; headerName: string; taskCount: number; lastTaskAt: string | null };
+  gmail: {
+    configured: boolean;
+    isConnected: boolean;
+    email: string | null;
+    connectedAt: string | null;
+    lastSyncedAt: string | null;
+    syncLabel: string;
+    syncNewerThanDays: number;
+    syncMaxMessages: number;
+    taskCount: number;
+    lastTaskAt: string | null;
+  };
+  zalo: {
+    webhookUrl: string;
+    pingUrl: string;
+    webhookApiKey: string;
+    headerName: string;
+    taskCount: number;
+    lastTaskAt: string | null;
+  };
   ai: {
     provider: string;
     model: string;

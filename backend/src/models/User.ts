@@ -12,6 +12,8 @@ export interface GmailIntegration {
   email: string | null;
   accessToken: string | null;
   refreshToken: string | null;
+  connectedAt: Date | null;
+  lastSyncedAt: Date | null;
 }
 
 export interface IUser {
@@ -40,6 +42,8 @@ const gmailIntegrationSchema = new Schema<GmailIntegration>(
     email: { type: String, default: null, trim: true, lowercase: true },
     accessToken: { type: String, default: null, select: false },
     refreshToken: { type: String, default: null, select: false },
+    connectedAt: { type: Date, default: null },
+    lastSyncedAt: { type: Date, default: null },
   },
   { _id: false },
 );

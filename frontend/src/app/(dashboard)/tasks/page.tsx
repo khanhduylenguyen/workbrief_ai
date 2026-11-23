@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, ClipboardList, Search, Wand2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { GmailSyncButton } from "@/components/GmailSyncButton";
 import { AiTaskModal } from "@/components/tasks/AiTaskModal";
 import { IncompleteModal } from "@/components/tasks/IncompleteModal";
 import { TaskCard } from "@/components/tasks/TaskCard";
@@ -67,10 +68,13 @@ export default function TasksPage() {
         title="Quản lý công việc"
         description="Theo dõi, tick checklist và chốt trạng thái các việc được giao."
         actions={
-          <Button onClick={() => setAiOpen(true)} className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500">
-            <Wand2 className="h-4 w-4" />
-            Tạo việc nhanh với AI
-          </Button>
+          <>
+            <GmailSyncButton />
+            <Button onClick={() => setAiOpen(true)} className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500">
+              <Wand2 className="h-4 w-4" />
+              Tạo việc nhanh với AI
+            </Button>
+          </>
         }
       />
 

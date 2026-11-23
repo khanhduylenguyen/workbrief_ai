@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "WorkBrief AI – Zalo",
+  "short_name": "WorkBrief AI",
+  "version": "1.0.0",
+  "description": "Bôi đen tin nhắn sếp giao trên Zalo Web → chuột phải → Gửi vào WorkBrief AI để AI tóm tắt và tạo công việc.",
+  "permissions": ["contextMenus", "storage", "notifications", "scripting"],
+  "host_permissions": [
+    "https://chat.zalo.me/*",
+    "http://localhost:8081/*",
+    "http://127.0.0.1:8081/*"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "WorkBrief AI – Zalo",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "popup.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

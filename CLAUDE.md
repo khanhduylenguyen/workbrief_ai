@@ -40,6 +40,13 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 - Mỗi lần tóm tắt trừ 1 quota (`aiQuotaUsed`), được giữ chỗ nguyên tử trước khi gọi AI và hoàn lại nếu AI lỗi.
 - Thiếu `GEMINI_API_KEY` + `AI_MOCK_FALLBACK=true` → trả tóm tắt mẫu (heuristic) để test, có cờ `isMock: true`.
 
+## Tích hợp
+
+- **Gmail** (`src/services/gmail.service.ts`, `googleapis`): OAuth 2.0 scope `gmail.readonly`, `access_type=offline` + `prompt=consent`. `state` là JWT ký bằng `JWT_ACCESS_SECRET` (type `gmail_oauth`, hạn 10 phút). Token lưu ở `User.gmailIntegration` (`select: false`); access token mới được ghi lại qua sự kiện `tokens`.
+- Sync chống trùng bằng `Task.externalMessageId` (unique index một phần `{userId, externalMessageId}`) + khoá in-memory mỗi user (409 khi đang chạy). Hết quota AI → dừng, `quotaExhausted: true`.
+- Lỗi Gmail **không** được trả 401/403 (frontend sẽ hiểu là mất phiên đăng nhập): dùng 400 + `data.code` (`GMAIL_NOT_CONNECTED`, `GMAIL_RECONNECT_REQUIRED`), 503 `GMAIL_NOT_CONFIGURED`, 409 `SYNC_IN_PROGRESS`.
+- **Zalo extension** (`/zalo-extension`, MV3, JS thuần, không build): gọi `POST /zalo/webhook` và `GET /zalo/ping` bằng header `x-webhook-key`. Fetch từ service worker nhờ `host_permissions` nên không phụ thuộc CORS.
+
 ## Frontend
 
 - Next.js 16 khác nhiều so với các bản cũ — đọc `frontend/node_modules/next/dist/docs/` trước khi dùng API mới (xem `frontend/AGENTS.md`).

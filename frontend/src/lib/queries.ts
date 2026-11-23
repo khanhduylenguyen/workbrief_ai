@@ -8,6 +8,7 @@ import type {
   AdminUser,
   AiSummary,
   Colleague,
+  GmailSyncResult,
   IntegrationOverview,
   Paginated,
   Task,
@@ -193,6 +194,40 @@ export function useRegenerateWebhookKey() {
   return useMutation({
     mutationFn: () => apiSend<{ webhookApiKey: string; webhookUrl: string }>("post", "/integrations/zalo/regenerate-key"),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.integrations }),
+  });
+}
+
+/** Asks the backend for the Google consent URL, then sends the browser there. */
+export function useGmailConnect() {
+  return useMutation({
+    mutationFn: async () => {
+      const url = await apiGet<{ url: string }>("/integrations/gmail/connect");
+      window.location.assign(url.url);
+    },
+  });
+}
+
+export function useGmailDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiSend<null>("post", "/integrations/gmail/disconnect"),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.integrations });
+      qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+export function useGmailSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    // Each new email costs one AI call, so allow plenty of time.
+    mutationFn: () => apiSend<GmailSyncResult>("post", "/integrations/gmail/sync", undefined, { timeout: 180_000 }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: qk.integrations });
+      qc.invalidateQueries({ queryKey: qk.me });
+    },
   });
 }
 

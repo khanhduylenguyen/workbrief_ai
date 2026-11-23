@@ -144,11 +144,13 @@ const LOW_KEYWORDS = ['tham khảo', 'khi rảnh', 'không gấp', 'fyi', 'for y
 
 /** Deterministic sample summariser used when no GEMINI_API_KEY is configured. */
 export function summarizeWithMock(rawContent: string, source: TaskSource): AiSummaryResult {
-  // Drop metadata header lines the Zalo webhook prepends ("Nhóm: …", "Người gửi: …", "Thời gian: …").
+  // Drop metadata header lines added by the Zalo webhook ("Nhóm:", "Người gửi:", "Thời gian:") and
+  // Gmail sync ("Từ:", "Ngày:"); keep the email subject ("Tiêu đề: …") as plain text so it becomes the title.
   const content = rawContent
     .replace(/\r\n/g, '\n')
     .split('\n')
-    .filter((l) => !/^(Nhóm|Người gửi|Thời gian):/.test(l.trim()))
+    .filter((l) => !/^(Nhóm|Người gửi|Thời gian|Từ|Ngày):/.test(l.trim()))
+    .map((l) => l.replace(/^\s*Tiêu đề:\s*/, ''))
     .join('\n')
     .trim();
   const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);

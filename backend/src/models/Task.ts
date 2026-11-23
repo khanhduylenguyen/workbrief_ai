@@ -28,6 +28,8 @@ export interface ITask {
   deadline: Date | null;
   completedAt: Date | null;
   incompleteReason: string | null;
+  /** Source message id (e.g. Gmail message id) — prevents importing the same message twice. */
+  externalMessageId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +55,7 @@ const taskSchema = new Schema<ITask>(
     deadline: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     incompleteReason: { type: String, default: null, trim: true, maxlength: 1_000 },
+    externalMessageId: { type: String, default: null },
   },
   { timestamps: true, toJSON: { versionKey: false } },
 );
@@ -60,5 +63,10 @@ const taskSchema = new Schema<ITask>(
 taskSchema.index({ userId: 1, status: 1, deadline: 1 });
 taskSchema.index({ userId: 1, createdAt: -1 });
 taskSchema.index({ userId: 1, source: 1 });
+// One task per external message per user (null ids — manual tasks — are not indexed).
+taskSchema.index(
+  { userId: 1, externalMessageId: 1 },
+  { unique: true, partialFilterExpression: { externalMessageId: { $type: 'string' } } },
+);
 
 export const Task = model<ITask>('Task', taskSchema);
