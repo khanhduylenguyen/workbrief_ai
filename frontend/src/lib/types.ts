@@ -162,3 +162,51 @@ export interface IntegrationOverview {
   };
   tasksBySource: Record<TaskSource, number>;
 }
+
+export interface WeeklyReport {
+  range: { start: string; end: string; label: string };
+  stats: {
+    completed: number;
+    incomplete: number;
+    created: number;
+    inProgress: number;
+    overdue: number;
+    dueNextWeek: number;
+    completionRate: number;
+  };
+  report: string;
+  isMock: boolean;
+  quota: { used: number; limit: number; remaining: number };
+}
+
+export type ReplyTone = "CONFIRM" | "PROGRESS" | "DONE" | "DELAY" | "QUESTION";
+export type ReplyChannel = "EMAIL" | "ZALO";
+
+export interface DraftReply {
+  subject: string;
+  body: string;
+  isMock: boolean;
+  quota: { used: number; limit: number; remaining: number };
+}
+
+export interface AssistantTaskRef {
+  _id: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  deadline: string | null;
+  source: TaskSource;
+  assignedByName: string | null;
+}
+
+export interface AssistantReply {
+  answer: string;
+  tasks: AssistantTaskRef[];
+  isMock: boolean;
+  quota: { used: number; limit: number; remaining: number };
+}
+
+export interface CalendarData {
+  scheduled: Task[];
+  unscheduled: Task[];
+}

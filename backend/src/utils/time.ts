@@ -63,6 +63,19 @@ export function zonedDayRange(date: Date, timeZone: string, addDays = 0): { star
   return { start, end };
 }
 
+/** [Monday 00:00, next Monday 00:00) of the local week containing `date`, shifted by `weekOffset` weeks. */
+export function zonedWeekRange(date: Date, timeZone: string, weekOffset = 0): { start: Date; end: Date } {
+  const p = zonedParts(date, timeZone);
+  const sinceMonday = (p.weekday + 6) % 7;
+  const start = zonedTimeToUtc(p.year, p.month, p.day - sinceMonday + weekOffset * 7, 0, 0, timeZone);
+  const end = zonedTimeToUtc(p.year, p.month, p.day - sinceMonday + weekOffset * 7 + 7, 0, 0, timeZone);
+  return { start, end };
+}
+
+export function formatDateVi(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat('vi-VN', { timeZone, day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+}
+
 function formatOffset(minutes: number): string {
   const sign = minutes >= 0 ? '+' : '-';
   const abs = Math.abs(minutes);

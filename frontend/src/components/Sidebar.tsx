@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  Bot,
   CalendarClock,
+  CalendarDays,
+  FileText,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -22,6 +25,9 @@ import { cn, formatDate, initials } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tasks", label: "Công việc", icon: ListChecks },
+  { href: "/calendar", label: "Lịch", icon: CalendarDays },
+  { href: "/assistant", label: "Trợ lý AI", icon: Bot },
+  { href: "/reports", label: "Báo cáo tuần", icon: FileText },
   { href: "/colleagues", label: "Danh bạ đồng nghiệp", icon: Users },
   { href: "/integrations", label: "Gmail & Zalo", icon: Plug },
   { href: "/profile", label: "Hồ sơ & bảo mật", icon: UserRound },

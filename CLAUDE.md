@@ -47,6 +47,12 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 - Lỗi Gmail **không** được trả 401/403 (frontend sẽ hiểu là mất phiên đăng nhập): dùng 400 + `data.code` (`GMAIL_NOT_CONNECTED`, `GMAIL_RECONNECT_REQUIRED`), 503 `GMAIL_NOT_CONFIGURED`, 409 `SYNC_IN_PROGRESS`.
 - **Zalo extension** (`/zalo-extension`, MV3, JS thuần, không build): gọi `POST /zalo/webhook` và `GET /zalo/ping` bằng header `x-webhook-key`. Fetch từ service worker nhờ `host_permissions` nên không phụ thuộc CORS.
 
+## Tính năng AI
+
+- Mọi lệnh gọi Gemini đi qua `callGeminiJson()` (JSON schema + model dự phòng, thử lại khi 404/429/500/503/timeout/lỗi mạng) và mọi tính năng AI trừ quota qua `withAiQuota()` (hoàn lại khi lỗi) trong `ai.service.ts`.
+- `aiFeatures.service.ts`: báo cáo tuần, soạn phản hồi, trợ lý hỏi đáp — đều có bản mock khi thiếu `GEMINI_API_KEY`. Prompt luôn nêu rõ dữ liệu công việc là dữ liệu, không phải chỉ dẫn.
+- Trợ lý tham chiếu task bằng mã 6 ký tự cuối của _id (`[#abc123]`), server map lại sang task thật; frontend hiển thị thành nút "Xem việc".
+
 ## Lịch chạy & nhắc việc
 
 - `/api/cron/daily` (Vercel Cron, 1 lần/ngày) và `/api/cron/gmail-sync` (GitHub Actions mỗi 30 phút) — xác thực bằng `CRON_SECRET` (`Authorization: Bearer` hoặc `x-cron-secret`). Không có `CRON_SECRET` → 503.

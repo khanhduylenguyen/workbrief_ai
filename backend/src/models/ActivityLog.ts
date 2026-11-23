@@ -17,6 +17,10 @@ export const ACTIVITY_ACTIONS = [
   'GMAIL_TASK_CREATED',
   'PROFILE_UPDATED',
   'DIGEST_SENT',
+  'AI_WEEKLY_REPORT',
+  'AI_REPLY_DRAFTED',
+  'AI_ASSISTANT_ASKED',
+  'TASK_RESCHEDULED',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

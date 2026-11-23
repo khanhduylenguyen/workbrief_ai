@@ -7,6 +7,12 @@ import { authStorage } from "./auth-storage";
 import type {
   AdminUser,
   AiSummary,
+  AssistantReply,
+  CalendarData,
+  DraftReply,
+  ReplyChannel,
+  ReplyTone,
+  WeeklyReport,
   Colleague,
   GmailSyncResult,
   IntegrationOverview,
@@ -339,4 +345,60 @@ export function useSetUserStatus() {
   return useAdminMutation(({ id, status }: { id: string; status: "ACTIVE" | "SUSPENDED" }) =>
     apiSend<AdminUser>("patch", `/admin/users/${id}/status`, { status }),
   );
+}
+
+/* ------------------------------------------------------- AI: reports etc -- */
+
+export function useWeeklyReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (weekOffset: number) =>
+      apiSend<WeeklyReport>("post", "/ai/weekly-report", { weekOffset }, { timeout: 120_000 }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
+}
+
+export function useDraftReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, ...body }: { taskId: string; tone: ReplyTone; channel: ReplyChannel; note?: string }) =>
+      apiSend<DraftReply>("post", `/tasks/${taskId}/draft-reply`, body, { timeout: 120_000 }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
+}
+
+export function useAssistant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { question: string; history: { role: "user" | "assistant"; content: string }[] }) =>
+      apiSend<AssistantReply>("post", "/ai/assistant", body, { timeout: 120_000 }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
+}
+
+/* ------------------------------------------------------------- Calendar -- */
+
+export function useCalendar(from: Date, to: Date) {
+  return useQuery({
+    queryKey: ["tasks", "calendar", from.toISOString(), to.toISOString()],
+    queryFn: () => apiGet<CalendarData>("/tasks/calendar", { params: { from: from.toISOString(), to: to.toISOString() } }),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useTask(taskId: string | null) {
+  return useQuery({
+    queryKey: ["tasks", "detail", taskId],
+    queryFn: () => apiGet<Task>(`/tasks/${taskId}`),
+    enabled: !!taskId,
+  });
+}
+
+export function useRescheduleTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, deadline }: { taskId: string; deadline: string | null }) =>
+      apiSend<Task>("patch", `/tasks/${taskId}`, { deadline }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
 }

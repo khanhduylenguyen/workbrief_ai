@@ -7,6 +7,8 @@ import { ActivityLog } from '../models/ActivityLog';
 import { Task, TASK_PRIORITIES, TASK_SOURCES, TASK_STATUSES } from '../models/Task';
 import { logActivity } from '../services/activityLog.service';
 import { summarizeForUser } from '../services/ai.service';
+import { draftReply } from '../services/aiFeatures.service';
+import { calendarQuerySchema, draftReplySchema } from '../validators/ai.schema';
 import { ASSIGNED_BY_FIELDS, findOwnedTask, resolveColleagueId } from '../services/task.service';
 import { ApiError } from '../utils/ApiError';
 import { buildPagination, sendSuccess } from '../utils/apiResponse';
@@ -208,17 +210,19 @@ export async function updateTask(req: Request, res: Response) {
   const input = updateTaskSchema.parse(req.body);
   const task = await findOwnedTask(user._id, taskIdParam(req));
 
+  const previousDeadline = task.deadline;
   const { assignedBy, checklist, ...rest } = input;
   task.set(rest);
   if (assignedBy !== undefined) task.assignedBy = (await resolveColleagueId(user._id, assignedBy)) ?? null;
   if (checklist !== undefined) task.set('checklist', checklist);
 
   await task.save();
+  const onlyDeadline = Object.keys(input).length === 1 && input.deadline !== undefined;
   await logActivity({
     userId: user._id,
     taskId: task._id,
-    action: 'TASK_UPDATED',
-    metadata: { fields: Object.keys(input) },
+    action: onlyDeadline ? 'TASK_RESCHEDULED' : 'TASK_UPDATED',
+    metadata: onlyDeadline ? { previousDeadline, newDeadline: task.deadline } : { fields: Object.keys(input) },
   });
   await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
 
@@ -314,4 +318,40 @@ export async function getTaskActivities(req: Request, res: Response) {
 
   const items = await ActivityLog.find({ userId: user._id, taskId }).sort({ createdAt: -1 }).limit(100);
   return sendSuccess(res, items, 'OK');
+}
+
+/* ------------------------------------------------------------- Calendar -- */
+
+/** Tasks with a deadline inside [from, to) plus open tasks without a deadline (for drag-to-schedule). */
+export async function getCalendar(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const { from, to } = calendarQuerySchema.parse(req.query);
+  const fields = 'title priority status deadline source assignedBy checklist completedAt';
+
+  const [scheduled, unscheduled] = await Promise.all([
+    Task.find({ userId: user._id, deadline: { $gte: from, $lt: to } })
+      .sort({ deadline: 1 })
+      .limit(500)
+      .select(fields)
+      .populate('assignedBy', ASSIGNED_BY_FIELDS),
+    Task.find({ userId: user._id, status: 'IN_PROGRESS', deadline: null })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .select(fields)
+      .populate('assignedBy', ASSIGNED_BY_FIELDS),
+  ]);
+
+  return sendSuccess(res, { scheduled, unscheduled }, 'OK');
+}
+
+/* ---------------------------------------------------------- Draft reply -- */
+
+export async function draftReplyForTask(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const input = draftReplySchema.parse(req.body ?? {});
+  const task = await findOwnedTask(user._id, taskIdParam(req));
+  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+
+  const result = await draftReply(user._id, user.fullName, task, input);
+  return sendSuccess(res, result, result.isMock ? 'Bản nháp mẫu (chưa cấu hình GEMINI_API_KEY)' : 'AI đã soạn bản nháp');
 }

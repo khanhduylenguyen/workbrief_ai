@@ -104,11 +104,14 @@ function geminiErrorStatus(err: unknown): number | null {
   return null;
 }
 
-/** Overloaded (503), rate limited (429), model retired / unknown (404), 500, or our own timeout. */
+/** Overloaded (503), rate limited (429), model retired / unknown (404), 500, timeouts and network drops. */
 function isRetryableGeminiError(err: unknown): boolean {
   const status = geminiErrorStatus(err);
   if (status !== null) return [404, 429, 500, 503].includes(status);
-  return (err as { name?: string })?.name === 'AbortError';
+  const e = err as { name?: string; message?: string; cause?: { code?: string } };
+  if (e?.name === 'AbortError') return true;
+  // undici / Node fetch network failures: "fetch failed", ECONNRESET, ETIMEDOUT, socket hang up…
+  return /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|network/i.test(`${e?.message ?? ''} ${e?.cause?.code ?? ''}`);
 }
 
 function describeGeminiError(err: unknown): string {
@@ -145,11 +148,18 @@ function normaliseChecklist(items: string[]): { text: string; isDone: boolean }[
   return result;
 }
 
-async function summarizeWithGemini(rawContent: string, source: TaskSource): Promise<AiSummaryResult> {
-  const prompt = `Nguồn: ${SOURCE_LABEL[source]}\nThời điểm hiện tại: ${describeNow(env.APP_TIMEZONE)}\n\nNội dung:\n"""\n${rawContent}\n"""`;
+export interface GeminiJsonRequest {
+  systemInstruction: string;
+  prompt: string;
+  responseJsonSchema: unknown;
+  temperature?: number;
+}
 
-  // Try the primary model, then each fallback, when Google reports the model as overloaded,
-  // rate-limited, retired (404) or the request times out.
+/**
+ * Call Gemini expecting a JSON response. Tries the primary model, then each fallback, when Google
+ * reports the model as overloaded, rate-limited, retired (404) or the request times out.
+ */
+export async function callGeminiJson({ systemInstruction, prompt, responseJsonSchema, temperature = 0.3 }: GeminiJsonRequest): Promise<unknown> {
   let text: string | undefined;
   let lastError: unknown = null;
   for (const model of geminiModels()) {
@@ -157,12 +167,7 @@ async function summarizeWithGemini(rawContent: string, source: TaskSource): Prom
       const response = await getGeminiClient().models.generateContent({
         model,
         contents: prompt,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          responseMimeType: 'application/json',
-          responseJsonSchema: RESPONSE_JSON_SCHEMA,
-          temperature: 0.3,
-        },
+        config: { systemInstruction, responseMimeType: 'application/json', responseJsonSchema, temperature },
       });
       text = response.text;
       lastError = null;
@@ -177,15 +182,17 @@ async function summarizeWithGemini(rawContent: string, source: TaskSource): Prom
     console.error('❌ Gemini request failed:', describeGeminiError(lastError));
     throw new ApiError(502, 'Dịch vụ AI đang gặp sự cố, vui lòng thử lại sau');
   }
-
   if (!text) throw new ApiError(502, 'AI không trả về kết quả');
-
-  let json: unknown;
   try {
-    json = JSON.parse(text);
+    return JSON.parse(text);
   } catch {
     throw new ApiError(502, 'AI trả về dữ liệu không đúng định dạng');
   }
+}
+
+async function summarizeWithGemini(rawContent: string, source: TaskSource): Promise<AiSummaryResult> {
+  const prompt = `Nguồn: ${SOURCE_LABEL[source]}\nThời điểm hiện tại: ${describeNow(env.APP_TIMEZONE)}\n\nNội dung:\n"""\n${rawContent}\n"""`;
+  const json = await callGeminiJson({ systemInstruction: SYSTEM_INSTRUCTION, prompt, responseJsonSchema: RESPONSE_JSON_SCHEMA });
 
   const parsed = geminiOutputSchema.safeParse(json);
   if (!parsed.success) throw new ApiError(502, 'AI trả về dữ liệu không đúng định dạng');
@@ -321,8 +328,30 @@ async function refundQuota(userId: Types.ObjectId): Promise<void> {
   await User.updateOne({ _id: userId, aiQuotaUsed: { $gt: 0 } }, { $inc: { aiQuotaUsed: -1 } });
 }
 
+export interface QuotaInfo {
+  used: number;
+  limit: number;
+  remaining: number;
+}
+
 export interface QuotaSummaryResult extends AiSummaryResult {
-  quota: { used: number; limit: number; remaining: number };
+  quota: QuotaInfo;
+}
+
+/**
+ * Run one AI operation for a user: reserves 1 quota atomically, refunds it if `fn` throws.
+ * Every AI feature (summaries, reports, reply drafts, assistant) goes through here.
+ */
+export async function withAiQuota<T>(userId: Types.ObjectId, fn: () => Promise<T>): Promise<{ result: T; quota: QuotaInfo }> {
+  if (!isAiAvailable()) throw new ApiError(503, 'Chưa cấu hình GEMINI_API_KEY cho dịch vụ AI');
+  const { aiQuotaUsed, aiQuotaLimit } = await reserveQuota(userId);
+  try {
+    const result = await fn();
+    return { result, quota: { used: aiQuotaUsed, limit: aiQuotaLimit, remaining: Math.max(0, aiQuotaLimit - aiQuotaUsed) } };
+  } catch (err) {
+    await refundQuota(userId);
+    throw err;
+  }
 }
 
 /** Summarise content on behalf of a user: checks + consumes quota, refunds on failure, logs activity. */
@@ -331,17 +360,7 @@ export async function summarizeForUser(
   rawContent: string,
   source: TaskSource,
 ): Promise<QuotaSummaryResult> {
-  if (!isAiAvailable()) throw new ApiError(503, 'Chưa cấu hình GEMINI_API_KEY cho dịch vụ AI');
-
-  const { aiQuotaUsed, aiQuotaLimit } = await reserveQuota(userId);
-
-  let result: AiSummaryResult;
-  try {
-    result = await summarizeContent(rawContent, source);
-  } catch (err) {
-    await refundQuota(userId);
-    throw err;
-  }
+  const { result, quota } = await withAiQuota(userId, () => summarizeContent(rawContent, source));
 
   await logActivity({
     userId,
@@ -349,8 +368,5 @@ export async function summarizeForUser(
     metadata: { source, isMock: result.isMock, contentLength: rawContent.length },
   });
 
-  return {
-    ...result,
-    quota: { used: aiQuotaUsed, limit: aiQuotaLimit, remaining: Math.max(0, aiQuotaLimit - aiQuotaUsed) },
-  };
+  return { ...result, quota };
 }

@@ -149,6 +149,11 @@ Trên `chat.zalo.me`: bôi đen tin nhắn → chuột phải → **Gửi vào W
 | `/integrations` | Trạng thái Gmail, Zalo webhook key (copy / tạo mới), giả lập tin nhắn Zalo |
 | `/admin` | Chỉ ADMIN: cấp tài khoản dùng thử, `+7 ngày`, `Reset AI`, `Khóa / Mở khóa` |
 | `/profile` | Hồ sơ: đổi họ tên, **đổi mật khẩu**, bật/tắt email nhắc việc & tự động đồng bộ Gmail |
+| `/calendar` | **Lịch** tháng theo hạn chót; kéo thả thẻ sang ngày khác để dời hạn (giữ giờ), kéo việc chưa có hạn vào lịch (17:00); mobile hiển thị dạng danh sách |
+| `/assistant` | **Trợ lý AI**: hỏi đáp về công việc của bạn ("việc nào quá hạn?", "chị Hương giao gì?"), có thẻ việc liên quan để mở nhanh |
+| `/reports` | **Báo cáo tuần** do AI viết (hoàn thành / chưa xong & lý do / rủi ro / kế hoạch tuần tới), sửa được, copy hoặc gửi email |
+
+Trên mỗi thẻ công việc có nút **Soạn phản hồi**: AI soạn tin trả lời người giao việc (xác nhận, báo tiến độ, báo hoàn thành, xin lùi hạn, hỏi lại) cho Email hoặc Zalo; người dùng xem/sửa rồi tự gửi. Mỗi lần dùng AI (tóm tắt, báo cáo, soạn phản hồi, hỏi trợ lý) tốn 1 lượt quota.
 
 AI tự đọc **hạn chót** trong nội dung ("trước 3h chiều nay", "thứ 6", "25/11"…) theo `APP_TIMEZONE` và điền sẵn Deadline (modal tạo việc, Zalo webhook, đồng bộ Gmail).
 
@@ -190,6 +195,14 @@ Mọi response: `{ success, data, message }`. Các route (trừ login/refresh/he
 | PATCH  | `/:id/checklist/:itemId`      | Tick checklist `{ isDone? }` (bỏ trống = đảo trạng thái)     |
 | PATCH  | `/:id/status`                 | `{ status, incompleteReason?, deadline? }`                    |
 | GET    | `/:id/activities`             | Lịch sử hoạt động của task                                   |
+| POST   | `/:id/draft-reply`            | `{ tone: CONFIRM\|PROGRESS\|DONE\|DELAY\|QUESTION, channel: EMAIL\|ZALO, note? }` → `{ subject, body }` |
+| GET    | `/calendar`                   | `?from=&to=` (≤ 62 ngày) → `{ scheduled, unscheduled }`       |
+
+### AI — `/api/ai`
+| Method | Path              | Mô tả |
+|--------|-------------------|-------|
+| POST   | `/weekly-report`  | `{ weekOffset: 0 \| -1 … -12 }` → `{ range, stats, report }` |
+| POST   | `/assistant`      | `{ question, history? }` → `{ answer, tasks }` |
 
 ### Colleagues — `/api/colleagues`
 CRUD: `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`.

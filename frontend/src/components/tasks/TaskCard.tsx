@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, CircleCheck, CircleX, RotateCcw, Trash2, UserRound } from "lucide-react";
+import { Check, ChevronDown, CircleCheck, CircleX, MessageSquareReply, RotateCcw, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { ContactButtons } from "@/components/ContactButtons";
 import { Button, Card, ProgressBar } from "@/components/ui/primitives";
@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/Toast";
 import { useDeleteTask, useToggleChecklist, useUpdateTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
+import { DraftReplyModal } from "./DraftReplyModal";
 import { DeadlineLabel, PriorityBadge, SourceBadge, StatusBadge } from "./TaskBadges";
 
 export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncomplete: (task: Task) => void }) {
@@ -16,6 +17,7 @@ export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncompl
   const updateStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
   const [showRaw, setShowRaw] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
   // Optimistic checkbox state while the request is in flight.
   const [pending, setPending] = useState<Record<string, boolean>>({});
 
@@ -161,7 +163,11 @@ export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncompl
           <span className="text-xs text-slate-400">Chưa gán người giao</span>
         )}
 
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
+          <Button size="sm" variant="ghost" onClick={() => setReplyOpen(true)} title="AI soạn tin trả lời người giao việc" className="text-indigo-600 hover:bg-indigo-50">
+            <MessageSquareReply className="h-3.5 w-3.5" />
+            Soạn phản hồi
+          </Button>
           {isOpen ? (
             <>
               <Button size="sm" variant="success" onClick={() => setStatus("COMPLETED")} loading={updateStatus.isPending}>
@@ -181,6 +187,7 @@ export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncompl
           )}
         </div>
       </div>
+      {replyOpen && <DraftReplyModal key={task._id} task={task} onClose={() => setReplyOpen(false)} />}
     </Card>
   );
 }
