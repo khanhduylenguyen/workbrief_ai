@@ -120,6 +120,44 @@ export function Field({
   );
 }
 
+export function Switch({
+  checked,
+  onChange,
+  disabled,
+  label,
+  description,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  disabled?: boolean;
+  label: string;
+  description?: ReactNode;
+}) {
+  return (
+    <label className={cn("flex items-start justify-between gap-4", disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
+      <span>
+        <span className="block text-sm font-medium text-slate-800">{label}</span>
+        {description && <span className="mt-0.5 block text-xs text-slate-500">{description}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
+          checked ? "bg-indigo-600" : "bg-slate-300",
+        )}
+      >
+        <span className={cn("inline-block h-5 w-5 rounded-full bg-white shadow transition-transform", checked ? "translate-x-5" : "translate-x-0.5")} />
+      </button>
+    </label>
+  );
+}
+
 /* ------------------------------------------------------------- Display -- */
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {

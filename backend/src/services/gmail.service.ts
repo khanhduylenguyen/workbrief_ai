@@ -365,7 +365,7 @@ async function runSync(userId: Types.ObjectId): Promise<GmailSyncResult> {
           assignedBy: colleagueByEmail.get(fromEmail) ?? (await matchColleagueByEmail(userId, fromEmail)),
           priority: summary.suggestedPriority,
           status: 'IN_PROGRESS',
-          deadline: null,
+          deadline: summary.suggestedDeadline,
           externalMessageId: messageId,
         });
         result.created++;

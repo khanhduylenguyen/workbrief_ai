@@ -23,3 +23,15 @@ export const changePasswordSchema = z
     message: 'Mật khẩu mới phải khác mật khẩu hiện tại',
     path: ['newPassword'],
   });
+
+export const updateProfileSchema = z
+  .object({
+    fullName: z.string().trim().min(1, 'Vui lòng nhập họ tên').max(120).optional(),
+    settings: z
+      .object({
+        emailDigest: z.boolean().optional(),
+        autoGmailSync: z.boolean().optional(),
+      })
+      .optional(),
+  })
+  .refine((d) => d.fullName !== undefined || (d.settings && Object.keys(d.settings).length > 0), 'Không có dữ liệu cần cập nhật');

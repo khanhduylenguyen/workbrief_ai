@@ -97,6 +97,28 @@ MongoDB Atlas → **Network Access** phải cho phép IP của Vercel (thường
 
 Frontend deploy riêng (Root Directory `frontend`) với `NEXT_PUBLIC_API_URL=https://<backend>.vercel.app/api`.
 
+## Nhắc việc qua email & tác vụ theo lịch
+
+- **Email nhắc việc mỗi sáng**: danh sách việc quá hạn / đến hạn hôm nay / ngày mai (không có thì không gửi). Người dùng bật/tắt ở trang **Hồ sơ** và có nút **Gửi thử**.
+- **Tự động đồng bộ Gmail**: quét email mới của các tài khoản đã kết nối (bật/tắt ở **Hồ sơ** hoặc **Gmail & Zalo**).
+
+Cấu hình (backend):
+
+| Biến | Ví dụ |
+|------|-------|
+| `CRON_SECRET` | chuỗi ngẫu nhiên dài; bắt buộc để bật `/api/cron/*` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Gmail: `smtp.gmail.com`, `465`, `true` |
+| `SMTP_USER`, `SMTP_PASS` | Gmail + **App Password** (myaccount.google.com → Security → 2-Step Verification → App passwords) |
+| `MAIL_FROM` | `WorkBrief AI <ban@gmail.com>` |
+| `APP_TIMEZONE` | `Asia/Ho_Chi_Minh` (mặc định) |
+
+Lịch chạy:
+
+- **Vercel Cron** (`backend/vercel.json`): `GET /api/cron/daily` lúc 01:00 UTC (≈ 08:00 giờ VN) — gửi email nhắc việc + đồng bộ Gmail. Vercel tự gửi header `Authorization: Bearer <CRON_SECRET>`. Gói Hobby chỉ cho chạy **1 lần/ngày**.
+- **GitHub Actions** (`.github/workflows/gmail-sync.yml`): gọi `POST /api/cron/gmail-sync` **mỗi 30 phút**. Cần thêm 2 repository secret: `BACKEND_URL` (vd `https://backend-dy-08b7.vercel.app`) và `CRON_SECRET` (trùng giá trị trên Vercel). Chưa có secret thì workflow tự bỏ qua.
+
+Gọi tay để thử: `curl -X POST https://<backend>/api/cron/gmail-sync -H "Authorization: Bearer <CRON_SECRET>"`.
+
 ## Cấu hình Gmail OAuth (một lần)
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/) → tạo project.
@@ -126,6 +148,9 @@ Trên `chat.zalo.me`: bôi đen tin nhắn → chuột phải → **Gửi vào W
 | `/colleagues` | Danh bạ sếp & đồng nghiệp + liên hệ nhanh |
 | `/integrations` | Trạng thái Gmail, Zalo webhook key (copy / tạo mới), giả lập tin nhắn Zalo |
 | `/admin` | Chỉ ADMIN: cấp tài khoản dùng thử, `+7 ngày`, `Reset AI`, `Khóa / Mở khóa` |
+| `/profile` | Hồ sơ: đổi họ tên, **đổi mật khẩu**, bật/tắt email nhắc việc & tự động đồng bộ Gmail |
+
+AI tự đọc **hạn chót** trong nội dung ("trước 3h chiều nay", "thứ 6", "25/11"…) theo `APP_TIMEZONE` và điền sẵn Deadline (modal tạo việc, Zalo webhook, đồng bộ Gmail).
 
 ## API chính
 
@@ -138,6 +163,8 @@ Mọi response: `{ success, data, message }`. Các route (trừ login/refresh/he
 | POST   | `/refresh`         | `{ refreshToken }` → cặp token mới      |
 | POST   | `/logout`          | Vô hiệu mọi token hiện có của user      |
 | GET    | `/me`              | Thông tin tài khoản + quota             |
+| PATCH  | `/me`              | `{ fullName?, settings?: { emailDigest?, autoGmailSync? } }` |
+| POST   | `/me/test-reminder`| Gửi ngay email nhắc việc (thử SMTP)     |
 | PATCH  | `/change-password` | `{ currentPassword, newPassword }`      |
 
 ### Admin — `/api/admin/users` (role `ADMIN`)

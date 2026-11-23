@@ -8,7 +8,7 @@ import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "r
 import { CopyButton } from "@/components/CopyButton";
 import { GmailSyncButton } from "@/components/GmailSyncButton";
 import { PriorityBadge } from "@/components/tasks/TaskBadges";
-import { Badge, Button, Card, ErrorBox, Field, Input, PageHeader, PageLoader, Textarea } from "@/components/ui/primitives";
+import { Badge, Button, Card, ErrorBox, Field, Input, PageHeader, PageLoader, Switch, Textarea } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
 import {
   qk,
@@ -17,6 +17,7 @@ import {
   useIntegrations,
   useRegenerateWebhookKey,
   useSimulateZalo,
+  useUpdateProfile,
 } from "@/lib/queries";
 import type { GmailSyncResult, Task } from "@/lib/types";
 import { formatDateTime } from "@/lib/utils";
@@ -34,11 +35,21 @@ export default function IntegrationsPage() {
   const [created, setCreated] = useState<{ task: Task; isMock: boolean } | null>(null);
   const connect = useGmailConnect();
   const disconnect = useGmailDisconnect();
+  const updateProfile = useUpdateProfile();
   const [syncResult, setSyncResult] = useState<GmailSyncResult | null>(null);
 
   async function onConnect() {
     try {
       await connect.mutateAsync(); // navigates away to Google on success
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  async function onToggleAutoSync(value: boolean) {
+    try {
+      await updateProfile.mutateAsync({ settings: { autoGmailSync: value } });
+      toast.success(value ? "Đã bật tự động đồng bộ Gmail." : "Đã tắt tự động đồng bộ Gmail.");
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -162,6 +173,22 @@ export default function IntegrationsPage() {
             <Row label="Task từ Gmail" value={gmail.taskCount} />
             <Row label="Đồng bộ gần nhất" value={formatDateTime(gmail.lastSyncedAt)} />
           </dl>
+
+          {gmail.isConnected && (
+            <div className="mt-4 rounded-lg border border-slate-100 p-3">
+              <Switch
+                checked={gmail.autoSync}
+                onChange={onToggleAutoSync}
+                disabled={updateProfile.isPending}
+                label="Tự động đồng bộ"
+                description={
+                  gmail.autoSyncScheduled
+                    ? "Hệ thống tự kiểm tra email mới theo lịch (khoảng 30 phút/lần)."
+                    : "Máy chủ chưa bật lịch chạy (CRON_SECRET) — hiện chỉ đồng bộ khi bấm tay."
+                }
+              />
+            </div>
+          )}
 
           <div className="mt-auto space-y-2 pt-4">
             {!gmail.configured ? (

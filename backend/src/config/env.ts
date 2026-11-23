@@ -34,6 +34,22 @@ const envSchema = z.object({
   GMAIL_SYNC_MAX_MESSAGES: z.coerce.number().int().min(1).max(50).default(10),
   GMAIL_SYNC_NEWER_THAN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 
+  // Timezone used for "today", reminder emails and resolving relative deadlines ("chiều nay", "thứ 6").
+  APP_TIMEZONE: z.string().default('Asia/Ho_Chi_Minh'),
+
+  // Shared secret for /api/cron/* (Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`).
+  CRON_SECRET: z.string().optional().default(''),
+  // Skip a user in scheduled Gmail sync if they synced less than this many minutes ago.
+  GMAIL_AUTO_SYNC_MIN_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(1440).default(25),
+
+  // Outgoing email (reminder digests). Leave SMTP_HOST empty to disable.
+  SMTP_HOST: z.string().optional().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: booleanString.default(false),
+  SMTP_USER: z.string().optional().default(''),
+  SMTP_PASS: z.string().optional().default(''),
+  MAIL_FROM: z.string().optional().default(''),
+
   GEMINI_API_KEY: z.string().optional().default(''),
   GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
   // Comma-separated models tried in order when the primary one is overloaded / retired.

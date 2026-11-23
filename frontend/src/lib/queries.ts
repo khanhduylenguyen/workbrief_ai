@@ -16,6 +16,7 @@ import type {
   TaskSource,
   TaskStats,
   TaskStatus,
+  Tokens,
   User,
 } from "./types";
 
@@ -53,6 +54,39 @@ export function useLogout() {
     router.replace("/login");
     qc.clear();
   };
+}
+
+export interface ProfileInput {
+  fullName?: string;
+  settings?: Partial<User["settings"]>;
+}
+
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ProfileInput) => apiSend<User>("patch", "/auth/me", input),
+    onSuccess: ({ data }) => {
+      qc.setQueryData(qk.me, data);
+      qc.invalidateQueries({ queryKey: qk.integrations });
+    },
+  });
+}
+
+/** Changing the password revokes old tokens; the response carries a fresh pair which we store. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (input: { currentPassword: string; newPassword: string }) => {
+      const res = await apiSend<{ tokens: Tokens }>("patch", "/auth/change-password", input);
+      authStorage.setTokens(res.data.tokens);
+      return res;
+    },
+  });
+}
+
+export function useSendTestReminder() {
+  return useMutation({
+    mutationFn: () => apiSend<{ to: string; tasks: number }>("post", "/auth/me/test-reminder"),
+  });
 }
 
 /* ---------------------------------------------------------------- Tasks -- */

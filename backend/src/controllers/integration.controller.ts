@@ -43,6 +43,8 @@ export async function getOverview(req: Request, res: Response) {
         syncLabel: env.GMAIL_SYNC_LABEL,
         syncNewerThanDays: env.GMAIL_SYNC_NEWER_THAN_DAYS,
         syncMaxMessages: env.GMAIL_SYNC_MAX_MESSAGES,
+        autoSync: user.settings?.autoGmailSync !== false,
+        autoSyncScheduled: !!env.CRON_SECRET,
         taskCount: tasksBySource.GMAIL,
         lastTaskAt: lastGmailTask?.createdAt ?? null,
       },
@@ -181,7 +183,7 @@ export async function zaloWebhook(req: Request, res: Response) {
     assignedBy,
     priority: summary.suggestedPriority,
     status: 'IN_PROGRESS',
-    deadline: null,
+    deadline: summary.suggestedDeadline,
   });
 
   await logActivity({

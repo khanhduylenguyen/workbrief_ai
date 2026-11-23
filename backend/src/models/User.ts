@@ -16,6 +16,13 @@ export interface GmailIntegration {
   lastSyncedAt: Date | null;
 }
 
+export interface UserSettings {
+  /** Daily email listing overdue / due-today / due-tomorrow tasks. */
+  emailDigest: boolean;
+  /** Include this user in the scheduled Gmail sync. */
+  autoGmailSync: boolean;
+}
+
 export interface IUser {
   fullName: string;
   email: string;
@@ -27,6 +34,8 @@ export interface IUser {
   aiQuotaUsed: number;
   webhookApiKey: string;
   gmailIntegration: GmailIntegration;
+  settings: UserSettings;
+  lastDigestAt: Date | null;
   /** Incremented on logout / password change / suspension to revoke issued JWTs. */
   tokenVersion: number;
   lastLoginAt: Date | null;
@@ -60,6 +69,17 @@ const userSchema = new Schema<IUser>(
     aiQuotaUsed: { type: Number, default: 0, min: 0 },
     webhookApiKey: { type: String, unique: true, default: generateWebhookApiKey },
     gmailIntegration: { type: gmailIntegrationSchema, default: () => ({}) },
+    settings: {
+      type: new Schema<UserSettings>(
+        {
+          emailDigest: { type: Boolean, default: true },
+          autoGmailSync: { type: Boolean, default: true },
+        },
+        { _id: false },
+      ),
+      default: () => ({}),
+    },
+    lastDigestAt: { type: Date, default: null },
     tokenVersion: { type: Number, default: 0 },
     lastLoginAt: { type: Date, default: null },
   },

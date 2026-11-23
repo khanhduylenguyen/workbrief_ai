@@ -65,9 +65,10 @@ export function relativeDeadline(iso: string | null) {
   if (!iso) return null;
   const diff = new Date(iso).getTime() - Date.now();
   const abs = Math.abs(diff);
+  const minutes = Math.round(abs / 60_000);
   const hours = Math.round(abs / 3_600_000);
   const days = Math.round(abs / 86_400_000);
-  const span = hours < 24 ? `${Math.max(1, hours)} giờ` : `${days} ngày`;
+  const span = minutes < 60 ? `${Math.max(1, minutes)} phút` : hours < 24 ? `${hours} giờ` : `${days} ngày`;
   return { overdue: diff < 0, label: diff < 0 ? `Quá hạn ${span}` : `Còn ${span}` };
 }
 

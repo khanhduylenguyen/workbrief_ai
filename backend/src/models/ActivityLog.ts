@@ -15,6 +15,8 @@ export const ACTIVITY_ACTIONS = [
   'GMAIL_DISCONNECTED',
   'GMAIL_SYNCED',
   'GMAIL_TASK_CREATED',
+  'PROFILE_UPDATED',
+  'DIGEST_SENT',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

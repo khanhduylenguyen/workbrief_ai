@@ -8,7 +8,7 @@ import { Button, Field, Input, Select, Textarea } from "@/components/ui/primitiv
 import { useToast } from "@/components/ui/Toast";
 import { useAiSummarize, useColleagues, useCreateTask, useMe } from "@/lib/queries";
 import type { TaskPriority, TaskSource } from "@/lib/types";
-import { fromDateTimeLocal, PRIORITY_LABEL, SOURCE_LABEL } from "@/lib/utils";
+import { formatDateTime, fromDateTimeLocal, PRIORITY_LABEL, SOURCE_LABEL, toDateTimeLocal } from "@/lib/utils";
 
 interface DraftItem {
   key: number;
@@ -39,7 +39,7 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
   const [form, setForm] = useState(EMPTY);
   const [checklist, setChecklist] = useState<DraftItem[]>([]);
   const [newStep, setNewStep] = useState("");
-  const [aiInfo, setAiInfo] = useState<{ isMock: boolean; remaining: number } | null>(null);
+  const [aiInfo, setAiInfo] = useState<{ isMock: boolean; remaining: number; deadline: string | null } | null>(null);
 
   const set = <K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -63,10 +63,21 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
     }
     try {
       const { data } = await summarize.mutateAsync({ rawContent: form.rawContent, source: form.source });
-      setForm((f) => ({ ...f, title: data.title, aiSummary: data.aiSummary, priority: data.suggestedPriority }));
+      setForm((f) => ({
+        ...f,
+        title: data.title,
+        aiSummary: data.aiSummary,
+        priority: data.suggestedPriority,
+        // Only fill the deadline if the user hasn't chosen one themselves.
+        deadline: f.deadline || toDateTimeLocal(data.suggestedDeadline),
+      }));
       setChecklist(data.checklist.map((c) => newItem(c.text, c.isDone)));
-      setAiInfo({ isMock: data.isMock, remaining: data.quota.remaining });
-      toast.success("AI đã tóm tắt xong — bạn có thể chỉnh sửa trước khi lưu.");
+      setAiInfo({ isMock: data.isMock, remaining: data.quota.remaining, deadline: data.suggestedDeadline });
+      toast.success(
+        data.suggestedDeadline
+          ? `AI đã tóm tắt và gợi ý hạn chót ${formatDateTime(data.suggestedDeadline)} — bạn có thể chỉnh trước khi lưu.`
+          : "AI đã tóm tắt xong — bạn có thể chỉnh sửa trước khi lưu.",
+      );
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -249,7 +260,29 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
                 ))}
               </Select>
             </Field>
-            <Field label="Deadline" htmlFor="deadline" className="sm:col-span-2">
+            <Field
+              label="Deadline"
+              htmlFor="deadline"
+              className="sm:col-span-2"
+              hint={
+                aiInfo?.deadline ? (
+                  <span className="inline-flex items-center gap-1 text-indigo-600">
+                    <Sparkles className="h-3 w-3" /> AI đọc được hạn chót: {formatDateTime(aiInfo.deadline)}
+                    {form.deadline !== toDateTimeLocal(aiInfo.deadline) && (
+                      <button
+                        type="button"
+                        className="ml-1 cursor-pointer font-medium underline"
+                        onClick={() => set("deadline", toDateTimeLocal(aiInfo.deadline))}
+                      >
+                        Dùng hạn này
+                      </button>
+                    )}
+                  </span>
+                ) : aiInfo ? (
+                  "Nội dung không nhắc hạn chót — hãy tự đặt nếu cần."
+                ) : undefined
+              }
+            >
               <Input id="deadline" type="datetime-local" value={form.deadline} onChange={(e) => set("deadline", e.target.value)} />
             </Field>
           </div>

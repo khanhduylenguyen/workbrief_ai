@@ -33,7 +33,10 @@ export interface User {
   aiQuotaUsed: number;
   aiQuotaRemaining: number;
   trialDaysLeft: number | null;
-  gmailIntegration: { isConnected: boolean; email: string | null };
+  gmailIntegration: { isConnected: boolean; email: string | null; lastSyncedAt?: string | null };
+  settings: { emailDigest: boolean; autoGmailSync: boolean };
+  lastDigestAt: string | null;
+  capabilities?: { mail: boolean };
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -96,6 +99,7 @@ export interface TaskStats {
   completed: number;
   incomplete: number;
   overdue: number;
+  dueToday: number;
   completionRate: number;
   bySource: Record<TaskSource, number>;
   byPriority: Record<TaskPriority, number>;
@@ -109,6 +113,8 @@ export interface AiSummary {
   aiSummary: string;
   checklist: { text: string; isDone: boolean }[];
   suggestedPriority: TaskPriority;
+  /** ISO string — deadline the AI read from the content, if any. */
+  suggestedDeadline: string | null;
   isMock: boolean;
   quota: { used: number; limit: number; remaining: number };
 }
@@ -134,6 +140,8 @@ export interface IntegrationOverview {
     syncLabel: string;
     syncNewerThanDays: number;
     syncMaxMessages: number;
+    autoSync: boolean;
+    autoSyncScheduled: boolean;
     taskCount: number;
     lastTaskAt: string | null;
   };

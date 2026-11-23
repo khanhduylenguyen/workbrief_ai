@@ -47,6 +47,13 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 - Lỗi Gmail **không** được trả 401/403 (frontend sẽ hiểu là mất phiên đăng nhập): dùng 400 + `data.code` (`GMAIL_NOT_CONNECTED`, `GMAIL_RECONNECT_REQUIRED`), 503 `GMAIL_NOT_CONFIGURED`, 409 `SYNC_IN_PROGRESS`.
 - **Zalo extension** (`/zalo-extension`, MV3, JS thuần, không build): gọi `POST /zalo/webhook` và `GET /zalo/ping` bằng header `x-webhook-key`. Fetch từ service worker nhờ `host_permissions` nên không phụ thuộc CORS.
 
+## Lịch chạy & nhắc việc
+
+- `/api/cron/daily` (Vercel Cron, 1 lần/ngày) và `/api/cron/gmail-sync` (GitHub Actions mỗi 30 phút) — xác thực bằng `CRON_SECRET` (`Authorization: Bearer` hoặc `x-cron-secret`). Không có `CRON_SECRET` → 503.
+- Email nhắc việc: `reminder.service.ts` + `mail.service.ts` (nodemailer, SMTP_*). Mỗi user tối đa 1 email/ngày (`lastDigestAt`). Tôn trọng `User.settings.emailDigest` / `autoGmailSync`.
+- Mọi tính toán "hôm nay" / hạn chót tương đối dùng `APP_TIMEZONE` qua `src/utils/time.ts` — không dùng giờ máy chủ (Vercel chạy UTC).
+- AI trả `suggestedDeadline` (Gemini ghi giờ địa phương `YYYY-MM-DDTHH:mm`, server đổi sang UTC); bản mock dùng `guessDeadline()`.
+
 ## Frontend
 
 - Next.js 16 khác nhiều so với các bản cũ — đọc `frontend/node_modules/next/dist/docs/` trước khi dùng API mới (xem `frontend/AGENTS.md`).

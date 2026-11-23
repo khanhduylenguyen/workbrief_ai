@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, ClipboardList, Clock, FileText, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, BellRing, CheckCircle2, CircleDashed, ClipboardList, Clock, FileText, XCircle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { DeadlineLabel, PriorityBadge, SourceBadge, StatusBadge } from "@/components/tasks/TaskBadges";
@@ -35,6 +35,34 @@ export default function DashboardPage() {
           </Link>
         }
       />
+
+      {(s.overdue > 0 || s.dueToday > 0) && (
+        <Link
+          href="/tasks"
+          className={cn(
+            "mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors",
+            s.overdue > 0 ? "border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100" : "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100",
+          )}
+        >
+          <BellRing className="h-5 w-5 shrink-0" />
+          <span className="flex-1">
+            {s.overdue > 0 && (
+              <>
+                Bạn có <b>{s.overdue} việc quá hạn</b>
+                {s.dueToday > 0 ? " và " : "."}
+              </>
+            )}
+            {s.dueToday > 0 && (
+              <>
+                {s.overdue > 0 ? "" : "Bạn có "}
+                <b>{s.dueToday} việc đến hạn hôm nay</b>.
+              </>
+            )}{" "}
+            Xử lý ngay để không bị trễ.
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0" />
+        </Link>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Tổng việc" value={s.total} icon={<ClipboardList className="h-5 w-5" />} tone="slate" />

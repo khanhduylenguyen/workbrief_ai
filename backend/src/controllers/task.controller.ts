@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import type { PipelineStage, Types } from 'mongoose';
+import { env } from '../config/env';
 import { getAuthUser } from '../middleware/auth.middleware';
+import { zonedDayRange } from '../utils/time';
 import { ActivityLog } from '../models/ActivityLog';
 import { Task, TASK_PRIORITIES, TASK_SOURCES, TASK_STATUSES } from '../models/Task';
 import { logActivity } from '../services/activityLog.service';
@@ -59,6 +61,7 @@ export async function getStats(req: Request, res: Response) {
     bySource: CountRow[];
     byPriority: CountRow[];
     overdue: { count: number }[];
+    dueToday: { count: number }[];
   }>([
     { $match: { userId: user._id } },
     {
@@ -68,6 +71,10 @@ export async function getStats(req: Request, res: Response) {
         byPriority: [{ $group: { _id: '$priority', count: { $sum: 1 } } }],
         overdue: [
           { $match: { status: 'IN_PROGRESS', deadline: { $ne: null, $lt: now } } },
+          { $count: 'count' },
+        ],
+        dueToday: [
+          { $match: { status: 'IN_PROGRESS', deadline: { $gte: now, $lt: zonedDayRange(now, env.APP_TIMEZONE).end } } },
           { $count: 'count' },
         ],
       },
@@ -99,6 +106,7 @@ export async function getStats(req: Request, res: Response) {
       completed: byStatus.COMPLETED,
       incomplete: byStatus.INCOMPLETE,
       overdue: facet?.overdue[0]?.count ?? 0,
+      dueToday: facet?.dueToday[0]?.count ?? 0,
       completionRate,
       bySource: toRecord(TASK_SOURCES, facet?.bySource),
       byPriority: toRecord(TASK_PRIORITIES, facet?.byPriority),

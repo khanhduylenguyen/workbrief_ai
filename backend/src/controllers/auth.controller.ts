@@ -7,7 +7,9 @@ import { logActivity } from '../services/activityLog.service';
 import { ApiError } from '../utils/ApiError';
 import { sendSuccess } from '../utils/apiResponse';
 import { issueTokenPair, verifyRefreshToken } from '../utils/jwt';
-import { changePasswordSchema, loginSchema, refreshSchema } from '../validators/auth.schema';
+import { isMailConfigured } from '../services/mail.service';
+import { sendDigest } from '../services/reminder.service';
+import { changePasswordSchema, loginSchema, refreshSchema, updateProfileSchema } from '../validators/auth.schema';
 
 // Used to keep login timing similar whether or not the email exists.
 const DUMMY_HASH = bcrypt.hashSync('workbrief-dummy-password', 10);
@@ -24,6 +26,7 @@ export function serializeAccount(user: UserDocument) {
     ...user.toJSON(),
     aiQuotaRemaining: Math.max(0, user.aiQuotaLimit - user.aiQuotaUsed),
     trialDaysLeft,
+    capabilities: { mail: isMailConfigured() },
   };
 }
 
@@ -97,4 +100,25 @@ export async function changePassword(req: Request, res: Response) {
   await logActivity({ userId: user._id, action: 'PASSWORD_CHANGED' });
 
   return sendSuccess(res, { tokens: issueTokenPair(tokenSubject(user)) }, 'Đổi mật khẩu thành công');
+}
+
+export async function updateMe(req: Request, res: Response) {
+  const input = updateProfileSchema.parse(req.body);
+  const user = getAuthUser(req);
+
+  if (input.fullName !== undefined) user.fullName = input.fullName;
+  if (input.settings?.emailDigest !== undefined) user.settings.emailDigest = input.settings.emailDigest;
+  if (input.settings?.autoGmailSync !== undefined) user.settings.autoGmailSync = input.settings.autoGmailSync;
+  await user.save();
+  await logActivity({ userId: user._id, action: 'PROFILE_UPDATED', metadata: { fields: Object.keys(input) } });
+
+  return sendSuccess(res, serializeAccount(user), 'Đã cập nhật hồ sơ');
+}
+
+/** Sends the reminder digest right now (even if empty) so the user can check their email setup. */
+export async function sendTestReminder(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const { digest } = await sendDigest(user, { force: true });
+  const total = digest.overdue.length + digest.dueToday.length + digest.dueTomorrow.length;
+  return sendSuccess(res, { to: user.email, tasks: total }, `Đã gửi email nhắc việc tới ${user.email}`);
 }

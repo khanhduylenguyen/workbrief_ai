@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { sendSuccess } from '../utils/apiResponse';
 import adminRoutes from './admin.routes';
 import authRoutes from './auth.routes';
+import cronRoutes from './cron.routes';
 import colleagueRoutes from './colleague.routes';
 import integrationRoutes from './integration.routes';
 import taskRoutes from './task.routes';
@@ -27,5 +28,6 @@ router.use('/admin', adminRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/colleagues', colleagueRoutes);
 router.use('/integrations', integrationRoutes);
+router.use('/cron', cronRoutes);
 
 export default router;
