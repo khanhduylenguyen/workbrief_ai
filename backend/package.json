@@ -3,15 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "description": "WorkBrief AI REST API",
-  "main": "dist/server.js",
+  "main": "index.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/main.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/main.js",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
     "@google/genai": "^3.6.1",

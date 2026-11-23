@@ -1,5 +1,5 @@
 import { env } from './config/env';
-import { createApp } from './app';
+import { createApp } from './createApp';
 import { connectDatabase, disconnectDatabase } from './config/db';
 import { seedAdmin } from './seed/seedAdmin';
 

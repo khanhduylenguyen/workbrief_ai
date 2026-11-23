@@ -64,6 +64,39 @@ Khi khởi động, backend tự tạo tài khoản Admin từ `ADMIN_EMAIL` / `
 
 Kiểm tra API: `GET http://localhost:8081/api/health`.
 
+## Deploy Backend lên Vercel
+
+Backend chạy dạng serverless trên Vercel qua `backend/index.js` → `dist/serverless.js` (được build bằng `npm run build`).
+Vercel **không** tự biên dịch TypeScript trong `src/` (entry dev đã đổi tên thành `src/main.ts`, `src/createApp.ts` để Vercel không tự nhận).
+Kết nối MongoDB và seed Admin chạy ở request đầu tiên của mỗi instance.
+
+Cấu hình project trên Vercel:
+
+| Mục | Giá trị |
+|-----|---------|
+| Root Directory | `backend` |
+| Framework Preset | Express (tự nhận) |
+| Build Command | `npm run build` (mặc định) |
+
+Environment Variables (Settings → Environment Variables):
+
+| Biến | Giá trị ví dụ |
+|------|---------------|
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | chuỗi kết nối Atlas (kèm `/workbrief_ai`) |
+| `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | 2 chuỗi ngẫu nhiên ≥ 32 ký tự, khác nhau |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | tài khoản Admin |
+| `CORS_ORIGINS` | domain frontend, vd `https://<frontend>.vercel.app` (nhiều domain cách nhau dấu phẩy) |
+| `PUBLIC_API_URL` | `https://<backend>.vercel.app` |
+| `FRONTEND_URL` | `https://<frontend>.vercel.app` |
+| `GEMINI_API_KEY`, `AI_MOCK_FALLBACK` | tuỳ chọn |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | tuỳ chọn (Gmail) |
+| `GOOGLE_REDIRECT_URI` | `https://<backend>.vercel.app/api/integrations/gmail/callback` (thêm cả URI này trong Google Cloud) |
+
+MongoDB Atlas → **Network Access** phải cho phép IP của Vercel (thường là `0.0.0.0/0`, vì Vercel không có IP cố định).
+
+Frontend deploy riêng (Root Directory `frontend`) với `NEXT_PUBLIC_API_URL=https://<backend>.vercel.app/api`.
+
 ## Cấu hình Gmail OAuth (một lần)
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/) → tạo project.

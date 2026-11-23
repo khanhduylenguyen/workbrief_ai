@@ -58,7 +58,8 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 ## Lệnh thường dùng
 
 Backend (`/backend`):
-- `npm run dev` — chạy dev (tsx watch), port 8081.
+- `npm run dev` — chạy dev (tsx watch `src/main.ts`), port 8081.
+- Vercel: entry `index.js` → `dist/serverless.js` (không `listen`, kết nối DB khi có request). Không đặt tên file `src/app.ts`, `src/server.ts`, `src/index.ts` — Vercel sẽ tự nhận làm entry và tự biên dịch TS.
 - `npm run typecheck` — `tsc --noEmit`, phải 0 lỗi trước khi commit.
 - `npm run build` / `npm start` — build ra `dist/` và chạy bản build.
 
