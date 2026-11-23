@@ -36,7 +36,7 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 
 ## AI
 
-- `src/services/ai.service.ts` gọi Gemini (`GEMINI_MODEL`, mặc định `gemini-2.5-flash`) với JSON schema, trả `{ title, aiSummary, checklist, suggestedPriority }`.
+- `src/services/ai.service.ts` gọi Gemini (`GEMINI_MODEL`, mặc định `gemini-3.5-flash`; lỗi 404/429/500/503/timeout thì thử lần lượt `GEMINI_FALLBACK_MODELS`) với JSON schema, trả `{ title, aiSummary, checklist, suggestedPriority }`.
 - Mỗi lần tóm tắt trừ 1 quota (`aiQuotaUsed`), được giữ chỗ nguyên tử trước khi gọi AI và hoàn lại nếu AI lỗi.
 - Thiếu `GEMINI_API_KEY` + `AI_MOCK_FALLBACK=true` → trả tóm tắt mẫu (heuristic) để test, có cờ `isMock: true`.
 

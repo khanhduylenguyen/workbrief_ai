@@ -35,7 +35,9 @@ const envSchema = z.object({
   GMAIL_SYNC_NEWER_THAN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 
   GEMINI_API_KEY: z.string().optional().default(''),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
+  // Comma-separated models tried in order when the primary one is overloaded / retired.
+  GEMINI_FALLBACK_MODELS: z.string().default('gemini-3.8-flash,gemini-3.5-flash-lite'),
   AI_MOCK_FALLBACK: booleanString.default(true),
 });
 

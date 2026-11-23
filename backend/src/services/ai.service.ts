@@ -69,6 +69,33 @@ function getGeminiClient(): GoogleGenAI {
   return geminiClient;
 }
 
+/** Primary model first, then GEMINI_FALLBACK_MODELS (deduplicated). */
+export function geminiModels(): string[] {
+  const list = [env.GEMINI_MODEL, ...env.GEMINI_FALLBACK_MODELS.split(',')].map((m) => m.trim()).filter(Boolean);
+  return [...new Set(list)];
+}
+
+function geminiErrorStatus(err: unknown): number | null {
+  const e = err as { status?: unknown; code?: unknown };
+  if (typeof e?.status === 'number') return e.status;
+  if (typeof e?.code === 'number') return e.code;
+  return null;
+}
+
+/** Overloaded (503), rate limited (429), model retired / unknown (404), 500, or our own timeout. */
+function isRetryableGeminiError(err: unknown): boolean {
+  const status = geminiErrorStatus(err);
+  if (status !== null) return [404, 429, 500, 503].includes(status);
+  return (err as { name?: string })?.name === 'AbortError';
+}
+
+function describeGeminiError(err: unknown): string {
+  const status = geminiErrorStatus(err);
+  if ((err as { name?: string })?.name === 'AbortError') return 'timeout';
+  const msg = err instanceof Error ? err.message : String(err);
+  return `${status ?? '?'} ${msg.slice(0, 160)}`;
+}
+
 export function isGeminiConfigured(): boolean {
   return env.GEMINI_API_KEY.trim().length > 0;
 }
@@ -99,21 +126,33 @@ function normaliseChecklist(items: string[]): { text: string; isDone: boolean }[
 async function summarizeWithGemini(rawContent: string, source: TaskSource): Promise<AiSummaryResult> {
   const prompt = `Nguồn: ${SOURCE_LABEL[source]}\nNgày hiện tại: ${new Date().toISOString().slice(0, 10)}\n\nNội dung:\n"""\n${rawContent}\n"""`;
 
+  // Try the primary model, then each fallback, when Google reports the model as overloaded,
+  // rate-limited, retired (404) or the request times out.
   let text: string | undefined;
-  try {
-    const response = await getGeminiClient().models.generateContent({
-      model: env.GEMINI_MODEL,
-      contents: prompt,
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        responseMimeType: 'application/json',
-        responseJsonSchema: RESPONSE_JSON_SCHEMA,
-        temperature: 0.3,
-      },
-    });
-    text = response.text;
-  } catch (err) {
-    console.error('❌ Gemini request failed:', err);
+  let lastError: unknown = null;
+  for (const model of geminiModels()) {
+    try {
+      const response = await getGeminiClient().models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+          responseMimeType: 'application/json',
+          responseJsonSchema: RESPONSE_JSON_SCHEMA,
+          temperature: 0.3,
+        },
+      });
+      text = response.text;
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err;
+      if (!isRetryableGeminiError(err)) break;
+      console.warn(`⚠️  Gemini model ${model} unavailable (${describeGeminiError(err)}), trying next model…`);
+    }
+  }
+  if (lastError) {
+    console.error('❌ Gemini request failed:', describeGeminiError(lastError));
     throw new ApiError(502, 'Dịch vụ AI đang gặp sự cố, vui lòng thử lại sau');
   }
 
