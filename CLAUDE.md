@@ -53,6 +53,13 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 - `aiFeatures.service.ts`: báo cáo tuần, soạn phản hồi, trợ lý hỏi đáp — đều có bản mock khi thiếu `GEMINI_API_KEY`. Prompt luôn nêu rõ dữ liệu công việc là dữ liệu, không phải chỉ dẫn.
 - Trợ lý tham chiếu task bằng mã 6 ký tự cuối của _id (`[#abc123]`), server map lại sang task thật; frontend hiển thị thành nút "Xem việc".
 
+## Đa phương tiện & Telegram
+
+- `media.service.ts`: ảnh/PDF/ghi âm gửi inline (base64) cho Gemini qua `callGeminiJson({ media, timeoutMs })`. MIME được chuẩn hoá trong `normaliseMedia()`; giới hạn 10 MB. Không có Gemini → 503 `AI_MEDIA_REQUIRES_GEMINI` **trước khi** trừ quota. Prompt bắt buộc trả trường hiển thị bằng tiếng Việt.
+- Frontend thu nhỏ ảnh và giới hạn file 3 MB (`src/lib/files.ts`) vì Vercel giới hạn body 4.5 MB; `createApp` nâng body limit lên 12 MB chỉ cho `/api/tasks/ai-summarize-file` và `/api/ai/meeting`.
+- Cuộc họp → nhiều việc: `POST /api/ai/meeting` trả bản nháp (không lưu), người dùng duyệt rồi gọi `POST /api/tasks/bulk`. Người giao được khớp với danh bạ bằng `matchColleague()` (bỏ danh xưng, chức vụ trong ngoặc).
+- `telegram.service.ts`: liên kết bằng mã dùng một lần (sha256, 15 phút) qua `t.me/<bot>?start=<code>`; một chat ↔ một tài khoản (unique index một phần). Webhook luôn trả 200, lỗi được báo lại trong chat; chống trùng bằng `externalMessageId = tg:<chatId>:<messageId>`. `TELEGRAM_API_BASE` cho phép trỏ vào API giả lập khi test.
+
 ## Lịch chạy & nhắc việc
 
 - `/api/cron/daily` (Vercel Cron, 1 lần/ngày) và `/api/cron/gmail-sync` (GitHub Actions mỗi 30 phút) — xác thực bằng `CRON_SECRET` (`Authorization: Bearer` hoặc `x-cron-secret`). Không có `CRON_SECRET` → 503.

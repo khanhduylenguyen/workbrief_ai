@@ -16,6 +16,16 @@ export interface GmailIntegration {
   lastSyncedAt: Date | null;
 }
 
+export interface TelegramIntegration {
+  chatId: string | null;
+  username: string | null;
+  firstName: string | null;
+  linkedAt: Date | null;
+  /** sha256 of the one-time code in the t.me/<bot>?start=<code> link. */
+  linkCodeHash: string | null;
+  linkCodeExpiresAt: Date | null;
+}
+
 export interface UserSettings {
   /** Daily email listing overdue / due-today / due-tomorrow tasks. */
   emailDigest: boolean;
@@ -34,6 +44,7 @@ export interface IUser {
   aiQuotaUsed: number;
   webhookApiKey: string;
   gmailIntegration: GmailIntegration;
+  telegramIntegration: TelegramIntegration;
   settings: UserSettings;
   lastDigestAt: Date | null;
   /** Incremented on logout / password change / suspension to revoke issued JWTs. */
@@ -69,6 +80,20 @@ const userSchema = new Schema<IUser>(
     aiQuotaUsed: { type: Number, default: 0, min: 0 },
     webhookApiKey: { type: String, unique: true, default: generateWebhookApiKey },
     gmailIntegration: { type: gmailIntegrationSchema, default: () => ({}) },
+    telegramIntegration: {
+      type: new Schema<TelegramIntegration>(
+        {
+          chatId: { type: String, default: null },
+          username: { type: String, default: null },
+          firstName: { type: String, default: null },
+          linkedAt: { type: Date, default: null },
+          linkCodeHash: { type: String, default: null, select: false },
+          linkCodeExpiresAt: { type: Date, default: null },
+        },
+        { _id: false },
+      ),
+      default: () => ({}),
+    },
     settings: {
       type: new Schema<UserSettings>(
         {
@@ -96,10 +121,21 @@ const userSchema = new Schema<IUser>(
           delete gmail.accessToken;
           delete gmail.refreshToken;
         }
+        const tg = ret.telegramIntegration as Record<string, unknown> | undefined;
+        if (tg) {
+          delete tg.linkCodeHash;
+          delete tg.chatId;
+        }
         return ret;
       },
     },
   },
+);
+
+// One Telegram chat ↔ one WorkBrief account (unlinked users have chatId null and are not indexed).
+userSchema.index(
+  { 'telegramIntegration.chatId': 1 },
+  { unique: true, partialFilterExpression: { 'telegramIntegration.chatId': { $type: 'string' } } },
 );
 
 export const User = model<IUser, Model<IUser>>('User', userSchema);

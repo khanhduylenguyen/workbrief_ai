@@ -1,12 +1,13 @@
 "use client";
 
-import { Info,Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Info, Paperclip, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import Link from "next/link";
-import { useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { useAiSummarize, useColleagues, useCreateTask, useMe } from "@/lib/queries";
+import { ACCEPT_TASK_FILES, fileKindLabel, toFilePayload } from "@/lib/files";
+import { useAiSummarize, useColleagues, useCreateTask, useMe, useSummarizeFile } from "@/lib/queries";
 import type { TaskPriority, TaskSource } from "@/lib/types";
 import { formatDateTime, fromDateTimeLocal, PRIORITY_LABEL, SOURCE_LABEL, toDateTimeLocal } from "@/lib/utils";
 
@@ -40,6 +41,9 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
   const [checklist, setChecklist] = useState<DraftItem[]>([]);
   const [newStep, setNewStep] = useState("");
   const [aiInfo, setAiInfo] = useState<{ isMock: boolean; remaining: number; deadline: string | null } | null>(null);
+  const summarizeFile = useSummarizeFile();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof typeof EMPTY>(key: K, value: (typeof EMPTY)[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -48,7 +52,9 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
     setChecklist([]);
     setNewStep("");
     setAiInfo(null);
+    setFileName(null);
     summarize.reset();
+    summarizeFile.reset();
   }
 
   function close() {
@@ -78,6 +84,28 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
           ? `AI đã tóm tắt và gợi ý hạn chót ${formatDateTime(data.suggestedDeadline)} — bạn có thể chỉnh trước khi lưu.`
           : "AI đã tóm tắt xong — bạn có thể chỉnh sửa trước khi lưu.",
       );
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  /** Image / PDF / audio → AI reads it and fills the same fields (the extracted text becomes the raw content). */
+  async function runAiOnFile(file: File) {
+    try {
+      const payload = await toFilePayload(file);
+      const { data } = await summarizeFile.mutateAsync({ file: payload, source: form.source });
+      setForm((f) => ({
+        ...f,
+        rawContent: data.extractedText || f.rawContent,
+        title: data.title,
+        aiSummary: data.aiSummary,
+        priority: data.suggestedPriority,
+        deadline: f.deadline || toDateTimeLocal(data.suggestedDeadline),
+      }));
+      setChecklist(data.checklist.map((c) => newItem(c.text, c.isDone)));
+      setAiInfo({ isMock: false, remaining: data.quota.remaining, deadline: data.suggestedDeadline });
+      setFileName(file.name);
+      toast.success(`AI đã đọc ${fileKindLabel(payload.mimeType)} “${file.name}” — kiểm tra lại trước khi lưu.`);
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -170,6 +198,26 @@ export function AiTaskModal({ open, onClose }: { open: boolean; onClose: () => v
               {!summarize.isPending && <Wand2 className="h-4 w-4" />}
               {summarize.isPending ? "AI đang tóm tắt…" : "AI Tóm tắt"}
             </Button>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-slate-300 p-2.5">
+            <input
+              ref={fileInput}
+              type="file"
+              accept={ACCEPT_TASK_FILES}
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) void runAiOnFile(f);
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()} loading={summarizeFile.isPending}>
+              {!summarizeFile.isPending && <Paperclip className="h-3.5 w-3.5" />}
+              {summarizeFile.isPending ? "AI đang đọc file…" : "Đọc ảnh / PDF / ghi âm"}
+            </Button>
+            <span className="min-w-0 truncate text-xs text-slate-500">
+              {fileName ? `Đã đọc: ${fileName}` : "Ảnh chụp tin nhắn, giấy ghi chú, file PDF hoặc ghi âm (≤ 3 MB)"}
+            </span>
           </div>
           <p className="flex items-center gap-1.5 text-xs text-slate-500">
             <Sparkles className="h-3.5 w-3.5 text-indigo-500" />

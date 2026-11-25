@@ -1,10 +1,10 @@
 "use client";
 
-import { CalendarPlus, KeyRound, Lock, LockOpen, RotateCcw, Search, ShieldAlert, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { CalendarPlus, CheckCircle2, KeyRound, Send, TriangleAlert, Lock, LockOpen, RotateCcw, Search, ShieldAlert, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, PageHeader, PageLoader, ProgressBar, Select } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { useAdminUsers, useCreateTrialUser, useExtendTrial, useMe, useResetQuota, useSetUserStatus } from "@/lib/queries";
+import { useAdminUsers, useCreateTrialUser, useExtendTrial, useMe, useResetQuota, useSetUserStatus, useTelegramAdminStatus, useTelegramSetup } from "@/lib/queries";
 import type { AdminUser } from "@/lib/types";
 import { cn, formatDate, formatDateTime, initials } from "@/lib/utils";
 
@@ -89,6 +89,7 @@ function AdminContent({ currentUserId }: { currentUserId: string }) {
   return (
     <>
       <PageHeader title="Quản trị (Admin)" description="Cấp tài khoản dùng thử, gia hạn, reset AI quota và khóa / mở tài khoản." />
+      <TelegramAdminCard />
 
       <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
         {/* Create trial account */}
@@ -316,6 +317,60 @@ function MiniStat({ label, value, tone = "text-slate-900" }: { label: string; va
     <Card className="px-4 py-3">
       <p className="text-xs text-slate-500">{label}</p>
       <p className={cn("mt-1 text-xl font-semibold", tone)}>{value}</p>
+    </Card>
+  );
+}
+
+/** Shows whether Telegram is pointing at this backend and lets the admin (re)register the webhook. */
+function TelegramAdminCard() {
+  const toast = useToast();
+  const status = useTelegramAdminStatus();
+  const setup = useTelegramSetup();
+  const s = status.data;
+
+  async function onSetup() {
+    try {
+      const { message } = await setup.mutateAsync();
+      toast.success(message);
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  return (
+    <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="rounded-xl bg-sky-50 p-2.5">
+          <Send className="h-5 w-5 text-sky-500" />
+        </span>
+        <div className="min-w-0 text-sm">
+          <p className="font-semibold text-slate-900">Telegram bot {s?.botUsername ? `@${s.botUsername}` : ""}</p>
+          {status.isLoading ? (
+            <p className="text-slate-500">Đang kiểm tra…</p>
+          ) : status.isError ? (
+            <p className="text-rose-600">{status.error.message}</p>
+          ) : !s?.configured ? (
+            <p className="text-slate-500">
+              Chưa cấu hình — thêm <code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_BOT_USERNAME</code>, <code>TELEGRAM_WEBHOOK_SECRET</code> vào backend.
+            </p>
+          ) : s.active ? (
+            <p className="flex items-center gap-1 text-emerald-700">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Webhook đang hoạt động · {s.pendingUpdates ?? 0} tin chờ
+              {s.lastError && <span className="text-amber-700"> · lỗi gần nhất: {s.lastError}</span>}
+            </p>
+          ) : (
+            <p className="flex items-center gap-1 text-amber-700">
+              <TriangleAlert className="h-3.5 w-3.5" /> Webhook chưa trỏ tới backend này ({s.url || "chưa cài"}).
+            </p>
+          )}
+          {s?.expectedUrl && <p className="truncate text-xs text-slate-400">{s.expectedUrl}</p>}
+        </div>
+      </div>
+      {s?.configured && (
+        <Button variant={s.active ? "outline" : "primary"} size="sm" onClick={onSetup} loading={setup.isPending}>
+          {s.active ? "Cài lại webhook" : "Cài webhook Telegram"}
+        </Button>
+      )}
     </Card>
   );
 }

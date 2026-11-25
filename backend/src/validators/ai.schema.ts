@@ -27,3 +27,27 @@ export const calendarQuerySchema = z
   })
   .refine((d) => d.to > d.from, { message: '"to" phải sau "from"', path: ['to'] })
   .refine((d) => d.to.getTime() - d.from.getTime() <= 62 * 86_400_000, { message: 'Khoảng thời gian tối đa 62 ngày', path: ['to'] });
+
+/** A file sent as base64 JSON (images are resized in the browser to stay under the platform body limit). */
+export const fileInputSchema = z.object({
+  mimeType: z.string().trim().min(3).max(100),
+  data: z.string().min(16, 'File rỗng').max(9_000_000, 'File quá lớn'),
+  filename: z.string().trim().max(200).optional(),
+});
+
+export const summarizeFileSchema = z.object({
+  file: fileInputSchema,
+  source: z.enum(['MANUAL', 'GMAIL', 'ZALO', 'TELEGRAM', 'MEETING']).default('MANUAL'),
+  note: z.string().trim().max(1_000).optional(),
+});
+
+export const meetingSchema = z
+  .object({
+    file: fileInputSchema.optional(),
+    text: z.string().max(30_000).optional(),
+    note: z.string().trim().max(1_000).optional(),
+  })
+  .refine((d) => !!d.file || (d.text?.trim().length ?? 0) >= 10, {
+    message: 'Hãy ghi âm, tải file hoặc dán nội dung cuộc họp (tối thiểu 10 ký tự).',
+    path: ['text'],
+  });

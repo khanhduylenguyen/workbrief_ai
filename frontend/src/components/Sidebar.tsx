@@ -7,6 +7,7 @@ import {
   FileText,
   LayoutDashboard,
   ListChecks,
+  Mic,
   LogOut,
   Plug,
   ShieldCheck,
@@ -27,9 +28,10 @@ const NAV = [
   { href: "/tasks", label: "Công việc", icon: ListChecks },
   { href: "/calendar", label: "Lịch", icon: CalendarDays },
   { href: "/assistant", label: "Trợ lý AI", icon: Bot },
+  { href: "/meetings", label: "Họp → Việc", icon: Mic },
   { href: "/reports", label: "Báo cáo tuần", icon: FileText },
   { href: "/colleagues", label: "Danh bạ đồng nghiệp", icon: Users },
-  { href: "/integrations", label: "Gmail & Zalo", icon: Plug },
+  { href: "/integrations", label: "Kết nối", icon: Plug },
   { href: "/profile", label: "Hồ sơ & bảo mật", icon: UserRound },
 ] as const;
 

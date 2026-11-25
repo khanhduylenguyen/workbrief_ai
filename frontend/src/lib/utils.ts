@@ -15,6 +15,8 @@ export const SOURCE_LABEL: Record<TaskSource, string> = {
   MANUAL: "Thủ công",
   GMAIL: "Gmail",
   ZALO: "Zalo",
+  TELEGRAM: "Telegram",
+  MEETING: "Cuộc họp",
 };
 
 export const PRIORITY_LABEL: Record<TaskPriority, string> = {
@@ -41,6 +43,8 @@ export const SOURCE_STYLE: Record<TaskSource, string> = {
   MANUAL: "bg-slate-100 text-slate-600",
   GMAIL: "bg-red-50 text-red-600",
   ZALO: "bg-blue-50 text-blue-600",
+  TELEGRAM: "bg-sky-50 text-sky-600",
+  MEETING: "bg-violet-50 text-violet-600",
 };
 
 const dateTimeFmt = new Intl.DateTimeFormat("vi-VN", {

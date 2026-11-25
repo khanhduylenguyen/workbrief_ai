@@ -6,6 +6,14 @@ import { User } from '../models/User';
 import { logActivity } from '../services/activityLog.service';
 import { isGeminiConfigured, summarizeForUser } from '../services/ai.service';
 import { ASSIGNED_BY_FIELDS, matchColleagueBySender } from '../services/task.service';
+import {
+  createLinkCode,
+  handleTelegramUpdate,
+  isTelegramConfigured,
+  unlinkTelegram,
+  verifyWebhookSecret,
+  type TgUpdate,
+} from '../services/telegram.service';
 import { buildConnectUrl, disconnectGmail, handleOAuthCallback, isGmailConfigured, syncGmail } from '../services/gmail.service';
 import { ApiError } from '../utils/ApiError';
 import { sendSuccess } from '../utils/apiResponse';
@@ -47,6 +55,15 @@ export async function getOverview(req: Request, res: Response) {
         autoSyncScheduled: !!env.CRON_SECRET,
         taskCount: tasksBySource.GMAIL,
         lastTaskAt: lastGmailTask?.createdAt ?? null,
+      },
+      telegram: {
+        configured: isTelegramConfigured(),
+        botUsername: env.TELEGRAM_BOT_USERNAME.replace(/^@/, '') || null,
+        isLinked: !!user.telegramIntegration?.chatId,
+        username: user.telegramIntegration?.username ?? null,
+        firstName: user.telegramIntegration?.firstName ?? null,
+        linkedAt: user.telegramIntegration?.linkedAt ?? null,
+        taskCount: tasksBySource.TELEGRAM ?? 0,
       },
       zalo: {
         webhookUrl: zaloWebhookUrl(),
@@ -201,4 +218,30 @@ export async function zaloWebhook(req: Request, res: Response) {
   await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
 
   return sendSuccess(res, { task, isMock: summary.isMock, quota: summary.quota }, 'Đã tạo công việc từ tin nhắn Zalo', 201);
+}
+
+/* ------------------------------------------------------------- Telegram -- */
+
+/** One-time t.me deep link (15 min) that links the chat which opens it to this account. */
+export async function telegramLink(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const link = await createLinkCode(user._id);
+  return sendSuccess(res, link, 'Mở link để kết nối Telegram (hiệu lực 15 phút)');
+}
+
+export async function telegramUnlink(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  await unlinkTelegram(user._id);
+  return sendSuccess(res, null, 'Đã ngắt kết nối Telegram');
+}
+
+/** Called by Telegram for every message to the bot. Auth: X-Telegram-Bot-Api-Secret-Token. */
+export async function telegramWebhook(req: Request, res: Response) {
+  if (!verifyWebhookSecret(req.header('x-telegram-bot-api-secret-token'))) {
+    throw ApiError.unauthorized('Telegram secret token không hợp lệ');
+  }
+  const update = req.body as TgUpdate;
+  if (typeof update?.update_id === 'number') await handleTelegramUpdate(update);
+  // Always 200 so Telegram doesn't retry; failures were already reported in the chat.
+  return res.status(200).json({ success: true, data: null, message: 'OK' });
 }

@@ -1,6 +1,6 @@
 export type UserRole = "ADMIN" | "USER";
 export type UserStatus = "ACTIVE" | "SUSPENDED";
-export type TaskSource = "MANUAL" | "GMAIL" | "ZALO";
+export type TaskSource = "MANUAL" | "GMAIL" | "ZALO" | "TELEGRAM" | "MEETING";
 export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type TaskStatus = "IN_PROGRESS" | "COMPLETED" | "INCOMPLETE";
 
@@ -145,6 +145,15 @@ export interface IntegrationOverview {
     taskCount: number;
     lastTaskAt: string | null;
   };
+  telegram: {
+    configured: boolean;
+    botUsername: string | null;
+    isLinked: boolean;
+    username: string | null;
+    firstName: string | null;
+    linkedAt: string | null;
+    taskCount: number;
+  };
   zalo: {
     webhookUrl: string;
     pingUrl: string;
@@ -209,4 +218,49 @@ export interface AssistantReply {
 export interface CalendarData {
   scheduled: Task[];
   unscheduled: Task[];
+}
+
+export interface MediaSummary extends Omit<AiSummary, "quota"> {
+  extractedText: string;
+  kind: "image" | "pdf" | "audio";
+  quota: { used: number; limit: number; remaining: number };
+}
+
+export interface MeetingTaskDraft {
+  title: string;
+  aiSummary: string;
+  checklist: { text: string; isDone: boolean }[];
+  suggestedPriority: TaskPriority;
+  suggestedDeadline: string | null;
+  requestedBy: string | null;
+  assignedBy: string | null;
+  owner: string | null;
+}
+
+export interface MeetingResult {
+  meetingTitle: string;
+  summary: string;
+  transcript: string;
+  decisions: string[];
+  tasks: MeetingTaskDraft[];
+  isMock: boolean;
+  quota: { used: number; limit: number; remaining: number };
+}
+
+export interface FilePayload {
+  mimeType: string;
+  /** base64 without data: prefix */
+  data: string;
+  filename?: string;
+}
+
+export interface TelegramStatus {
+  configured: boolean;
+  expectedUrl: string;
+  botUsername?: string;
+  url?: string;
+  active?: boolean;
+  pendingUpdates?: number;
+  lastError?: string | null;
+  lastErrorAt?: string | null;
 }

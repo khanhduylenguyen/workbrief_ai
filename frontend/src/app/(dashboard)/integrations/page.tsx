@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { CopyButton } from "@/components/CopyButton";
 import { GmailSyncButton } from "@/components/GmailSyncButton";
+import { TelegramCard } from "@/components/TelegramCard";
 import { PriorityBadge } from "@/components/tasks/TaskBadges";
 import { Badge, Button, Card, ErrorBox, Field, Input, PageHeader, PageLoader, Switch, Textarea } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
@@ -104,7 +105,7 @@ export default function IntegrationsPage() {
 
   return (
     <>
-      <PageHeader title="Gmail & Zalo" description="Kết nối nguồn công việc để AI tự tóm tắt và tạo việc cho bạn." />
+      <PageHeader title="Kết nối" description="Gmail, Zalo, Telegram — kết nối nguồn công việc để AI tự tóm tắt và tạo việc cho bạn." />
 
       {/* Reads ?gmail=connected|error after the Google OAuth redirect (useSearchParams needs Suspense). */}
       <Suspense fallback={null}>
@@ -261,6 +262,10 @@ export default function IntegrationsPage() {
             </div>
           </div>
         </Card>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <TelegramCard telegram={overview.data.telegram} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">

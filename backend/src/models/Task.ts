@@ -1,6 +1,6 @@
 import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 
-export const TASK_SOURCES = ['MANUAL', 'GMAIL', 'ZALO'] as const;
+export const TASK_SOURCES = ['MANUAL', 'GMAIL', 'ZALO', 'TELEGRAM', 'MEETING'] as const;
 export type TaskSource = (typeof TASK_SOURCES)[number];
 
 export const TASK_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;

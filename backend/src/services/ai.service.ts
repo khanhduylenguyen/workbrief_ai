@@ -25,6 +25,8 @@ const SOURCE_LABEL: Record<TaskSource, string> = {
   MANUAL: 'ghi chú nhập tay',
   GMAIL: 'email (Gmail)',
   ZALO: 'tin nhắn Zalo',
+  TELEGRAM: 'tin nhắn Telegram',
+  MEETING: 'ghi chép cuộc họp',
 };
 
 const SYSTEM_INSTRUCTION = `Bạn là trợ lý tóm tắt công việc cho nhân viên văn phòng Việt Nam.
@@ -129,12 +131,12 @@ export function isAiAvailable(): boolean {
   return isGeminiConfigured() || env.AI_MOCK_FALLBACK;
 }
 
-function truncate(text: string, max: number): string {
+export function truncate(text: string, max: number): string {
   const clean = text.trim();
   return clean.length <= max ? clean : `${clean.slice(0, max - 1).trimEnd()}…`;
 }
 
-function normaliseChecklist(items: string[]): { text: string; isDone: boolean }[] {
+export function normaliseChecklist(items: string[]): { text: string; isDone: boolean }[] {
   const seen = new Set<string>();
   const result: { text: string; isDone: boolean }[] = [];
   for (const raw of items) {
@@ -148,26 +150,52 @@ function normaliseChecklist(items: string[]): { text: string; isDone: boolean }[
   return result;
 }
 
+/** A file sent inline to Gemini (image, PDF, audio), base64-encoded. */
+export interface GeminiMedia {
+  mimeType: string;
+  data: string;
+}
+
 export interface GeminiJsonRequest {
   systemInstruction: string;
   prompt: string;
   responseJsonSchema: unknown;
   temperature?: number;
+  /** Optional attachments (multimodal). */
+  media?: GeminiMedia[];
+  /** Per-request timeout; audio/PDF need longer than the 45s default. */
+  timeoutMs?: number;
 }
 
 /**
  * Call Gemini expecting a JSON response. Tries the primary model, then each fallback, when Google
  * reports the model as overloaded, rate-limited, retired (404) or the request times out.
  */
-export async function callGeminiJson({ systemInstruction, prompt, responseJsonSchema, temperature = 0.3 }: GeminiJsonRequest): Promise<unknown> {
+export async function callGeminiJson({
+  systemInstruction,
+  prompt,
+  responseJsonSchema,
+  temperature = 0.3,
+  media,
+  timeoutMs,
+}: GeminiJsonRequest): Promise<unknown> {
+  const contents = media?.length
+    ? [{ role: 'user', parts: [{ text: prompt }, ...media.map((m) => ({ inlineData: { mimeType: m.mimeType, data: m.data } }))] }]
+    : prompt;
   let text: string | undefined;
   let lastError: unknown = null;
   for (const model of geminiModels()) {
     try {
       const response = await getGeminiClient().models.generateContent({
         model,
-        contents: prompt,
-        config: { systemInstruction, responseMimeType: 'application/json', responseJsonSchema, temperature },
+        contents,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseJsonSchema,
+          temperature,
+          ...(timeoutMs && { httpOptions: { timeout: timeoutMs } }),
+        },
       });
       text = response.text;
       lastError = null;

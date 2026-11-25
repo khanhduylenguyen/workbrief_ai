@@ -119,6 +119,26 @@ Lịch chạy:
 
 Gọi tay để thử: `curl -X POST https://<backend>/api/cron/gmail-sync -H "Authorization: Bearer <CRON_SECRET>"`.
 
+## Telegram bot (một lần)
+
+1. Trên Telegram, nhắn **@BotFather** → `/newbot` → đặt tên (vd `WorkBrief AI`) và username kết thúc bằng `bot` (vd `WorkBriefAIBot`). BotFather trả về **token**.
+2. Thêm vào backend (Vercel → Environment Variables, và `backend/.env` nếu chạy local):
+   - `TELEGRAM_BOT_TOKEN` = token từ BotFather
+   - `TELEGRAM_BOT_USERNAME` = username bot, không có `@`
+   - `TELEGRAM_WEBHOOK_SECRET` = chuỗi ngẫu nhiên ≥ 16 ký tự
+   Rồi **Redeploy**.
+3. Đăng nhập Admin → trang **Quản trị** → **Cài webhook Telegram** (Telegram chỉ gọi webhook qua HTTPS, nên cần backend đã deploy; `PUBLIC_API_URL` phải là `https://…`).
+4. Người dùng: trang **Kết nối** → **Kết nối Telegram** → Telegram mở chat với bot → bấm **Start**.
+5. Gửi / chuyển tiếp cho bot: tin nhắn, ảnh, PDF, tin nhắn thoại → AI tạo công việc (nguồn `TELEGRAM`) và trả lời ngay trong chat. Lệnh: `/status`, `/unlink`, `/help`.
+
+Microsoft Teams chưa hỗ trợ (cần đăng ký Azure Bot + Microsoft 365).
+
+## AI đọc ảnh / PDF / ghi âm
+
+- Modal **Tạo việc nhanh với AI** → **Đọc ảnh / PDF / ghi âm**: ảnh chụp tin nhắn, giấy ghi chú, file PDF, file ghi âm → AI chép nội dung và điền sẵn tiêu đề, tóm tắt, checklist, hạn chót.
+- Trang **Họp → Việc** (`/meetings`): ghi âm ngay trên trình duyệt (tối đa 12 phút), tải file ghi âm / ảnh biên bản / PDF hoặc dán ghi chép → AI tách **nhiều việc**, tự khớp người giao với danh bạ → chọn, chỉnh rồi **tạo hàng loạt** (nguồn `MEETING`).
+- Cần `GEMINI_API_KEY` (chế độ mẫu chỉ hỗ trợ ghi chép dạng văn bản). Mỗi lần xử lý = 1 lượt AI. Giới hạn file 3 MB khi tải từ trình duyệt (ảnh được tự thu nhỏ; ghi âm ≈ 12 phút ở 32 kbps) do giới hạn 4.5 MB/request của Vercel; file qua Telegram tối đa 10 MB.
+
 ## Cấu hình Gmail OAuth (một lần)
 
 1. Vào [Google Cloud Console](https://console.cloud.google.com/) → tạo project.
@@ -195,6 +215,8 @@ Mọi response: `{ success, data, message }`. Các route (trừ login/refresh/he
 | PATCH  | `/:id/checklist/:itemId`      | Tick checklist `{ isDone? }` (bỏ trống = đảo trạng thái)     |
 | PATCH  | `/:id/status`                 | `{ status, incompleteReason?, deadline? }`                    |
 | GET    | `/:id/activities`             | Lịch sử hoạt động của task                                   |
+| POST   | `/ai-summarize-file`          | `{ file: { mimeType, data(base64), filename? }, source?, note? }` → bản nháp + `extractedText` |
+| POST   | `/bulk`                       | `{ tasks: [...] }` (tối đa 20) — tạo nhiều việc một lần       |
 | POST   | `/:id/draft-reply`            | `{ tone: CONFIRM\|PROGRESS\|DONE\|DELAY\|QUESTION, channel: EMAIL\|ZALO, note? }` → `{ subject, body }` |
 | GET    | `/calendar`                   | `?from=&to=` (≤ 62 ngày) → `{ scheduled, unscheduled }`       |
 
@@ -203,6 +225,9 @@ Mọi response: `{ success, data, message }`. Các route (trừ login/refresh/he
 |--------|-------------------|-------|
 | POST   | `/weekly-report`  | `{ weekOffset: 0 \| -1 … -12 }` → `{ range, stats, report }` |
 | POST   | `/assistant`      | `{ question, history? }` → `{ answer, tasks }` |
+| POST   | `/meeting`        | `{ file?, text?, note? }` → `{ meetingTitle, summary, transcript, decisions, tasks }` (chưa lưu) |
+
+Integrations: `POST /integrations/telegram/link` (deep link 15 phút), `POST /integrations/telegram/unlink`, `POST /integrations/telegram/webhook` (Telegram gọi, xác thực header `X-Telegram-Bot-Api-Secret-Token`). Admin: `GET /admin/telegram`, `POST /admin/telegram/setup`.
 
 ### Colleagues — `/api/colleagues`
 CRUD: `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`.

@@ -34,6 +34,13 @@ const envSchema = z.object({
   GMAIL_SYNC_MAX_MESSAGES: z.coerce.number().int().min(1).max(50).default(10),
   GMAIL_SYNC_NEWER_THAN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 
+  // Telegram bot (create with @BotFather). Leave TELEGRAM_BOT_TOKEN empty to disable.
+  TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
+  TELEGRAM_BOT_USERNAME: z.string().optional().default(''),
+  // Random string; Telegram echoes it in X-Telegram-Bot-Api-Secret-Token so we can verify webhook calls.
+  TELEGRAM_WEBHOOK_SECRET: z.string().optional().default(''),
+  TELEGRAM_API_BASE: z.string().default('https://api.telegram.org'),
+
   // Timezone used for "today", reminder emails and resolving relative deadlines ("chiều nay", "thứ 6").
   APP_TIMEZONE: z.string().default('Asia/Ho_Chi_Minh'),
 

@@ -75,3 +75,10 @@ export const statsQuerySchema = z.object({
   upcomingDays: z.coerce.number().int().min(1).max(90).default(7),
   upcomingLimit: z.coerce.number().int().min(1).max(50).default(10),
 });
+
+export const bulkCreateTasksSchema = z.object({
+  tasks: z
+    .array(createTaskSchema)
+    .min(1, 'Chọn ít nhất một công việc')
+    .max(20, 'Tối đa 20 công việc mỗi lần'),
+});

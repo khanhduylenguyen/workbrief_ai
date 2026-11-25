@@ -92,6 +92,8 @@ export default function DashboardPage() {
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
           <span>Gmail: {s.bySource.GMAIL}</span>
           <span>Zalo: {s.bySource.ZALO}</span>
+          <span>Telegram: {s.bySource.TELEGRAM ?? 0}</span>
+          <span>Cuộc họp: {s.bySource.MEETING ?? 0}</span>
           <span>Thủ công: {s.bySource.MANUAL}</span>
         </div>
       </Card>

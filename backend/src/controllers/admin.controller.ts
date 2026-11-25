@@ -5,6 +5,7 @@ import { getAuthUser } from '../middleware/auth.middleware';
 import { Task } from '../models/Task';
 import { User, type IUser, type UserDocument } from '../models/User';
 import { BCRYPT_ROUNDS } from '../seed/seedAdmin';
+import { getTelegramWebhookInfo, isTelegramConfigured, setupTelegramWebhook, telegramWebhookUrl } from '../services/telegram.service';
 import { ApiError } from '../utils/ApiError';
 import { buildPagination, sendSuccess } from '../utils/apiResponse';
 import { addDays, escapeRegex, toObjectId } from '../utils/helpers';
@@ -171,4 +172,18 @@ export async function updateUserStatus(req: Request, res: Response) {
     serializeAdminUser(user, counts.get(user._id.toString())),
     status === 'SUSPENDED' ? 'Đã khoá tài khoản' : 'Đã mở khoá tài khoản',
   );
+}
+
+/* ------------------------------------------------------------- Telegram -- */
+
+export async function telegramStatus(_req: Request, res: Response) {
+  if (!isTelegramConfigured()) {
+    return sendSuccess(res, { configured: false, expectedUrl: telegramWebhookUrl() }, 'Chưa cấu hình Telegram bot');
+  }
+  return sendSuccess(res, { configured: true, ...(await getTelegramWebhookInfo()) }, 'OK');
+}
+
+export async function telegramSetup(_req: Request, res: Response) {
+  const info = await setupTelegramWebhook();
+  return sendSuccess(res, { configured: true, ...info }, 'Đã cài webhook Telegram');
 }

@@ -12,5 +12,7 @@ router.get('/users/:id', admin.getUser);
 router.patch('/users/:id/extend-trial', admin.extendTrial);
 router.patch('/users/:id/reset-quota', admin.resetQuota);
 router.patch('/users/:id/status', admin.updateUserStatus);
+router.get('/telegram', admin.telegramStatus);
+router.post('/telegram/setup', admin.telegramSetup);
 
 export default router;

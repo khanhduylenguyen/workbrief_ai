@@ -31,6 +31,8 @@ export function createApp({ beforeRoutes }: CreateAppOptions = {}) {
       allowedHeaders: ['Content-Type', 'Authorization', 'x-webhook-key'],
     }),
   );
+  // File uploads (base64 images / PDF / audio) get a larger body limit than the rest of the API.
+  app.use(['/api/tasks/ai-summarize-file', '/api/ai/meeting'], express.json({ limit: '12mb' }));
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
   app.use(morgan(env.isProduction ? 'combined' : 'dev'));

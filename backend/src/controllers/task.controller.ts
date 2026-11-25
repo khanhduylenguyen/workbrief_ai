@@ -8,13 +8,15 @@ import { Task, TASK_PRIORITIES, TASK_SOURCES, TASK_STATUSES } from '../models/Ta
 import { logActivity } from '../services/activityLog.service';
 import { summarizeForUser } from '../services/ai.service';
 import { draftReply } from '../services/aiFeatures.service';
-import { calendarQuerySchema, draftReplySchema } from '../validators/ai.schema';
+import { summarizeMediaForUser } from '../services/media.service';
+import { calendarQuerySchema, draftReplySchema, summarizeFileSchema } from '../validators/ai.schema';
 import { ASSIGNED_BY_FIELDS, findOwnedTask, resolveColleagueId } from '../services/task.service';
 import { ApiError } from '../utils/ApiError';
 import { buildPagination, sendSuccess } from '../utils/apiResponse';
 import { addDays, escapeRegex, toObjectId } from '../utils/helpers';
 import {
   aiSummarizeSchema,
+  bulkCreateTasksSchema,
   createTaskSchema,
   listTasksQuerySchema,
   statsQuerySchema,
@@ -354,4 +356,43 @@ export async function draftReplyForTask(req: Request, res: Response) {
 
   const result = await draftReply(user._id, user.fullName, task, input);
   return sendSuccess(res, result, result.isMock ? 'Bản nháp mẫu (chưa cấu hình GEMINI_API_KEY)' : 'AI đã soạn bản nháp');
+}
+
+/* -------------------------------------------------- AI from file / bulk -- */
+
+/** Image / PDF / audio → one task draft (not saved). */
+export async function aiSummarizeFile(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const { file, source, note } = summarizeFileSchema.parse(req.body);
+  const result = await summarizeMediaForUser(user._id, file, { source, note });
+  return sendSuccess(res, result, `AI đã đọc ${result.kind === 'audio' ? 'ghi âm' : result.kind === 'pdf' ? 'tài liệu PDF' : 'ảnh'}`);
+}
+
+/** Create several tasks at once (e.g. from a meeting). */
+export async function bulkCreateTasks(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const { tasks } = bulkCreateTasksSchema.parse(req.body);
+
+  const created = [];
+  for (const input of tasks) {
+    const task = await Task.create({
+      userId: user._id,
+      title: input.title,
+      rawContent: input.rawContent,
+      aiSummary: input.aiSummary,
+      checklist: input.checklist,
+      source: input.source,
+      assignedBy: (await resolveColleagueId(user._id, input.assignedBy)) ?? null,
+      priority: input.priority,
+      deadline: input.deadline ?? null,
+      status: 'IN_PROGRESS',
+    });
+    created.push(task);
+  }
+  await logActivity({
+    userId: user._id,
+    action: 'TASKS_BULK_CREATED',
+    metadata: { count: created.length, sources: [...new Set(created.map((t) => t.source))] },
+  });
+  return sendSuccess(res, { items: created, count: created.length }, `Đã tạo ${created.length} công việc`, 201);
 }

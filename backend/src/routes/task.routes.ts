@@ -8,6 +8,8 @@ router.use(authenticate);
 
 // Static paths must be registered before "/:id".
 router.post('/ai-summarize', tasks.aiSummarize);
+router.post('/ai-summarize-file', tasks.aiSummarizeFile);
+router.post('/bulk', tasks.bulkCreateTasks);
 router.get('/stats', tasks.getStats);
 router.get('/calendar', tasks.getCalendar);
 

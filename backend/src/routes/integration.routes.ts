@@ -8,6 +8,9 @@ const router = Router();
 router.post('/zalo/webhook', authenticateWebhook, integrations.zaloWebhook);
 router.get('/zalo/ping', authenticateWebhook, integrations.zaloPing);
 
+// Telegram calls this for every bot message — verified by the secret token header, not JWT.
+router.post('/telegram/webhook', integrations.telegramWebhook);
+
 // Google redirects the browser here — identity comes from the signed `state`, not a JWT.
 router.get('/gmail/callback', integrations.gmailCallback);
 
@@ -16,5 +19,7 @@ router.post('/zalo/regenerate-key', authenticate, integrations.regenerateWebhook
 router.get('/gmail/connect', authenticate, integrations.gmailConnect);
 router.post('/gmail/disconnect', authenticate, integrations.gmailDisconnect);
 router.post('/gmail/sync', authenticate, integrations.gmailSync);
+router.post('/telegram/link', authenticate, integrations.telegramLink);
+router.post('/telegram/unlink', authenticate, integrations.telegramUnlink);
 
 export default router;

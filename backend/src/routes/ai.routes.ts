@@ -7,5 +7,6 @@ const router = Router();
 router.use(authenticate);
 router.post('/weekly-report', ai.weeklyReport);
 router.post('/assistant', ai.assistant);
+router.post('/meeting', ai.meeting);
 
 export default router;

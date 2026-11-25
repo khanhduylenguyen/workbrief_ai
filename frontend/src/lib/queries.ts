@@ -10,6 +10,10 @@ import type {
   AssistantReply,
   CalendarData,
   DraftReply,
+  FilePayload,
+  MediaSummary,
+  MeetingResult,
+  TelegramStatus,
   ReplyChannel,
   ReplyTone,
   WeeklyReport,
@@ -400,5 +404,66 @@ export function useRescheduleTask() {
     mutationFn: ({ taskId, deadline }: { taskId: string; deadline: string | null }) =>
       apiSend<Task>("patch", `/tasks/${taskId}`, { deadline }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+}
+
+/* ---------------------------------------------- AI: files, meetings, bulk -- */
+
+export function useSummarizeFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { file: FilePayload; source?: TaskSource; note?: string }) =>
+      apiSend<MediaSummary>("post", "/tasks/ai-summarize-file", body, { timeout: 180_000 }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
+}
+
+export function useMeetingExtract() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { file?: FilePayload; text?: string; note?: string }) =>
+      apiSend<MeetingResult>("post", "/ai/meeting", body, { timeout: 240_000 }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
+}
+
+export function useBulkCreateTasks() {
+  const invalidate = useInvalidateTasks();
+  return useMutation({
+    mutationFn: (tasks: TaskInput[]) => apiSend<{ items: Task[]; count: number }>("post", "/tasks/bulk", { tasks }),
+    onSuccess: invalidate,
+  });
+}
+
+/* ------------------------------------------------------------- Telegram -- */
+
+export function useTelegramLink() {
+  return useMutation({
+    mutationFn: () => apiSend<{ deepLink: string; botUsername: string; expiresAt: string }>("post", "/integrations/telegram/link"),
+  });
+}
+
+export function useTelegramUnlink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiSend<null>("post", "/integrations/telegram/unlink"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.integrations }),
+  });
+}
+
+export function useTelegramAdminStatus(enabled = true) {
+  return useQuery({
+    queryKey: ["admin", "telegram"],
+    queryFn: () => apiGet<TelegramStatus>("/admin/telegram"),
+    enabled,
+    retry: false,
+  });
+}
+
+export function useTelegramSetup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiSend<TelegramStatus>("post", "/admin/telegram/setup"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "telegram"] }),
   });
 }
