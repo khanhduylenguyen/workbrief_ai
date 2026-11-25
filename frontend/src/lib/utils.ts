@@ -17,6 +17,7 @@ export const SOURCE_LABEL: Record<TaskSource, string> = {
   ZALO: "Zalo",
   TELEGRAM: "Telegram",
   MEETING: "Cuộc họp",
+  TEAM: "Nhóm",
 };
 
 export const PRIORITY_LABEL: Record<TaskPriority, string> = {
@@ -45,6 +46,7 @@ export const SOURCE_STYLE: Record<TaskSource, string> = {
   ZALO: "bg-blue-50 text-blue-600",
   TELEGRAM: "bg-sky-50 text-sky-600",
   MEETING: "bg-violet-50 text-violet-600",
+  TEAM: "bg-emerald-50 text-emerald-700",
 };
 
 const dateTimeFmt = new Intl.DateTimeFormat("vi-VN", {
@@ -107,4 +109,11 @@ export function initials(name: string) {
   const last = parts[parts.length - 1] ?? "";
   const first = parts.length > 1 ? parts[0] : "";
   return ((first?.[0] ?? "") + (last[0] ?? "")).toUpperCase() || "?";
+}
+
+/** 5.2 → "5,2 giờ"; 50 → "2,1 ngày" */
+export function formatDuration(hours: number | null | undefined): string {
+  if (hours === null || hours === undefined) return "—";
+  const nf = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+  return hours < 48 ? `${nf.format(hours)} giờ` : `${nf.format(hours / 24)} ngày`;
 }

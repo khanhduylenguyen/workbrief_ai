@@ -61,6 +61,18 @@ async function reply(chatId: number | string, html: string, replyTo?: number): P
   }
 }
 
+/** Best-effort notification to a user's linked Telegram chat (no-op if not configured / not linked). */
+export async function notifyUserOnTelegram(userId: Types.ObjectId, html: string): Promise<boolean> {
+  if (!isTelegramConfigured()) return false;
+  const user = await User.findById(userId).select('telegramIntegration');
+  const chatId = user?.telegramIntegration?.chatId;
+  if (!chatId) return false;
+  await reply(chatId, html);
+  return true;
+}
+
+export { escapeHtml as escapeTelegramHtml };
+
 async function downloadFile(fileId: string): Promise<{ data: string; bytes: number }> {
   const file = await tg<{ file_path?: string; file_size?: number }>('getFile', { file_id: fileId });
   if (!file.file_path) throw ApiError.badRequest('Telegram không trả về file.');

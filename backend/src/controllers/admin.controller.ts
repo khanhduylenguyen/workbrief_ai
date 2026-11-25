@@ -5,6 +5,7 @@ import { getAuthUser } from '../middleware/auth.middleware';
 import { Task } from '../models/Task';
 import { User, type IUser, type UserDocument } from '../models/User';
 import { BCRYPT_ROUNDS } from '../seed/seedAdmin';
+import { accessInfo } from '../services/access';
 import { getTelegramWebhookInfo, isTelegramConfigured, setupTelegramWebhook, telegramWebhookUrl } from '../services/telegram.service';
 import { ApiError } from '../utils/ApiError';
 import { buildPagination, sendSuccess } from '../utils/apiResponse';
@@ -45,11 +46,13 @@ async function getTaskCounts(userIds: Types.ObjectId[]): Promise<Map<string, Tas
 
 function serializeAdminUser(user: UserDocument, counts: TaskCounts = EMPTY_COUNTS) {
   const now = Date.now();
-  const trialExpired = !!user.trialExpiresAt && user.trialExpiresAt.getTime() <= now;
+  const access = accessInfo(user);
+  const trialExpired = !access.active;
   return {
     ...user.toJSON(),
     aiQuotaRemaining: Math.max(0, user.aiQuotaLimit - user.aiQuotaUsed),
     trialExpired,
+    access,
     trialDaysLeft: user.trialExpiresAt
       ? Math.max(0, Math.ceil((user.trialExpiresAt.getTime() - now) / 86_400_000))
       : null,

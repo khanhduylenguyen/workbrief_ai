@@ -1,6 +1,6 @@
 import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 
-export const TASK_SOURCES = ['MANUAL', 'GMAIL', 'ZALO', 'TELEGRAM', 'MEETING'] as const;
+export const TASK_SOURCES = ['MANUAL', 'GMAIL', 'ZALO', 'TELEGRAM', 'MEETING', 'TEAM'] as const;
 export type TaskSource = (typeof TASK_SOURCES)[number];
 
 export const TASK_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
@@ -23,6 +23,9 @@ export interface ITask {
   checklist: Types.DocumentArray<IChecklistItem>;
   source: TaskSource;
   assignedBy: Types.ObjectId | null;
+  /** Team leader (a WorkBrief user) who assigned this task inside a team workspace. */
+  assignedByUser: Types.ObjectId | null;
+  teamId: Types.ObjectId | null;
   priority: TaskPriority;
   status: TaskStatus;
   deadline: Date | null;
@@ -50,6 +53,8 @@ const taskSchema = new Schema<ITask>(
     checklist: { type: [checklistItemSchema], default: [] },
     source: { type: String, enum: TASK_SOURCES, default: 'MANUAL' },
     assignedBy: { type: Schema.Types.ObjectId, ref: 'Colleague', default: null },
+    assignedByUser: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    teamId: { type: Schema.Types.ObjectId, ref: 'Team', default: null },
     priority: { type: String, enum: TASK_PRIORITIES, default: 'MEDIUM' },
     status: { type: String, enum: TASK_STATUSES, default: 'IN_PROGRESS' },
     deadline: { type: Date, default: null },
@@ -63,6 +68,7 @@ const taskSchema = new Schema<ITask>(
 taskSchema.index({ userId: 1, status: 1, deadline: 1 });
 taskSchema.index({ userId: 1, createdAt: -1 });
 taskSchema.index({ userId: 1, source: 1 });
+taskSchema.index({ teamId: 1, assignedByUser: 1, createdAt: -1 });
 // One task per external message per user (null ids — manual tasks — are not indexed).
 taskSchema.index(
   { userId: 1, externalMessageId: 1 },

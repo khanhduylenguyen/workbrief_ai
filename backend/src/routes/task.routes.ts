@@ -12,6 +12,7 @@ router.post('/ai-summarize-file', tasks.aiSummarizeFile);
 router.post('/bulk', tasks.bulkCreateTasks);
 router.get('/stats', tasks.getStats);
 router.get('/calendar', tasks.getCalendar);
+router.get('/analytics', tasks.getTaskAnalytics);
 
 router.get('/', tasks.listTasks);
 router.post('/', tasks.createTask);

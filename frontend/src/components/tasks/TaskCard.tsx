@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, ChevronDown, CircleCheck, CircleX, MessageSquareReply, RotateCcw, Trash2, UserRound } from "lucide-react";
+import { Check, ChevronDown, CircleCheck, CircleX, MessageSquareReply, RotateCcw, Trash2, UserRound, Users } from "lucide-react";
 import { useState } from "react";
 import { ContactButtons } from "@/components/ContactButtons";
 import { Button, Card, ProgressBar } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { useDeleteTask, useToggleChecklist, useUpdateTaskStatus } from "@/lib/queries";
+import { useDeleteTask, useMe, useToggleChecklist, useUpdateTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { cn, formatDateTime } from "@/lib/utils";
 import { DraftReplyModal } from "./DraftReplyModal";
@@ -13,6 +13,9 @@ import { DeadlineLabel, PriorityBadge, SourceBadge, StatusBadge } from "./TaskBa
 
 export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncomplete: (task: Task) => void }) {
   const toast = useToast();
+  const me = useMe();
+  // Team tasks can only be withdrawn by the leader who assigned them.
+  const lockedByLeader = !!task.teamId && !!task.assignedByUser && task.assignedByUser._id !== me.data?._id;
   const toggle = useToggleChecklist();
   const updateStatus = useUpdateTaskStatus();
   const deleteTask = useDeleteTask();
@@ -73,9 +76,11 @@ export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncompl
             {task.title}
           </h3>
         </div>
-        <Button variant="ghost" size="icon" onClick={remove} loading={deleteTask.isPending} aria-label="Xóa công việc" className="hover:text-rose-600">
-          {!deleteTask.isPending && <Trash2 className="h-4 w-4" />}
-        </Button>
+        {!lockedByLeader && (
+          <Button variant="ghost" size="icon" onClick={remove} loading={deleteTask.isPending} aria-label="Xóa công việc" className="hover:text-rose-600">
+            {!deleteTask.isPending && <Trash2 className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
 
       <div className="mt-2">
@@ -150,7 +155,16 @@ export function TaskCard({ task, onMarkIncomplete }: { task: Task; onMarkIncompl
       {/* Footer (spacer keeps it pinned to the bottom of equal-height grid cards) */}
       <div className="flex-1" />
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-        {task.assignedBy ? (
+        {task.assignedByUser ? (
+          <div className="flex min-w-0 items-center gap-2">
+            <Users className="h-4 w-4 shrink-0 text-emerald-600" />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-slate-700">{task.assignedByUser.fullName}</p>
+              <p className="truncate text-[11px] text-slate-400">Trưởng nhóm</p>
+            </div>
+            <ContactButtons email={task.assignedByUser.email} subject={`Re: ${task.title}`} />
+          </div>
+        ) : task.assignedBy ? (
           <div className="flex min-w-0 items-center gap-2">
             <UserRound className="h-4 w-4 shrink-0 text-slate-400" />
             <div className="min-w-0">

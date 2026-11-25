@@ -27,6 +27,9 @@ export const ACTIVITY_ACTIONS = [
   'TELEGRAM_LINKED',
   'TELEGRAM_UNLINKED',
   'TELEGRAM_TASK_CREATED',
+  'TEAM_TASK_ASSIGNED',
+  'TEAM_TASK_RECALLED',
+  'SUBSCRIPTION_ACTIVATED',
 ] as const;
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[number];
 

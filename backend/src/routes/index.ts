@@ -4,10 +4,12 @@ import { sendSuccess } from '../utils/apiResponse';
 import adminRoutes from './admin.routes';
 import aiRoutes from './ai.routes';
 import authRoutes from './auth.routes';
+import billingRoutes from './billing.routes';
 import cronRoutes from './cron.routes';
 import colleagueRoutes from './colleague.routes';
 import integrationRoutes from './integration.routes';
 import taskRoutes from './task.routes';
+import teamRoutes from './team.routes';
 
 const router = Router();
 
@@ -31,5 +33,7 @@ router.use('/colleagues', colleagueRoutes);
 router.use('/integrations', integrationRoutes);
 router.use('/cron', cronRoutes);
 router.use('/ai', aiRoutes);
+router.use('/team', teamRoutes);
+router.use('/billing', billingRoutes);
 
 export default router;

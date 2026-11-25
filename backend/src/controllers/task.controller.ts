@@ -9,6 +9,7 @@ import { logActivity } from '../services/activityLog.service';
 import { summarizeForUser } from '../services/ai.service';
 import { draftReply } from '../services/aiFeatures.service';
 import { summarizeMediaForUser } from '../services/media.service';
+import { getAnalytics } from '../services/analytics.service';
 import { calendarQuerySchema, draftReplySchema, summarizeFileSchema } from '../validators/ai.schema';
 import { ASSIGNED_BY_FIELDS, findOwnedTask, resolveColleagueId } from '../services/task.service';
 import { ApiError } from '../utils/ApiError';
@@ -16,6 +17,7 @@ import { buildPagination, sendSuccess } from '../utils/apiResponse';
 import { addDays, escapeRegex, toObjectId } from '../utils/helpers';
 import {
   aiSummarizeSchema,
+  analyticsQuerySchema,
   bulkCreateTasksSchema,
   createTaskSchema,
   listTasksQuerySchema,
@@ -24,6 +26,8 @@ import {
   updateTaskSchema,
   updateTaskStatusSchema,
 } from '../validators/task.schema';
+
+const LEADER_FIELDS = 'fullName email';
 
 const PRIORITY_RANK_EXPR = {
   $switch: {
@@ -100,7 +104,7 @@ export async function getStats(req: Request, res: Response) {
     .sort({ deadline: 1 })
     .limit(upcomingLimit)
     .select('title priority status deadline source assignedBy checklist')
-    .populate('assignedBy', ASSIGNED_BY_FIELDS);
+    .populate('assignedBy', ASSIGNED_BY_FIELDS).populate('assignedByUser', LEADER_FIELDS);
 
   return sendSuccess(
     res,
@@ -172,7 +176,10 @@ export async function listTasks(req: Request, res: Response) {
   ];
 
   const [rows, total] = await Promise.all([Task.aggregate(pipeline), Task.countDocuments(match)]);
-  const items = await Task.populate(rows, { path: 'assignedBy', select: ASSIGNED_BY_FIELDS });
+  const items = await Task.populate(rows, [
+    { path: 'assignedBy', select: ASSIGNED_BY_FIELDS },
+    { path: 'assignedByUser', select: LEADER_FIELDS },
+  ]);
 
   return sendSuccess(res, { items, pagination: buildPagination(page, limit, total) }, 'Lấy danh sách công việc thành công');
 }
@@ -180,7 +187,7 @@ export async function listTasks(req: Request, res: Response) {
 export async function getTask(req: Request, res: Response) {
   const user = getAuthUser(req);
   const task = await findOwnedTask(user._id, taskIdParam(req));
-  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+  await task.populate([{ path: 'assignedBy', select: ASSIGNED_BY_FIELDS }, { path: 'assignedByUser', select: LEADER_FIELDS }]);
   return sendSuccess(res, task, 'OK');
 }
 
@@ -202,7 +209,7 @@ export async function createTask(req: Request, res: Response) {
   });
 
   await logActivity({ userId: user._id, taskId: task._id, action: 'TASK_CREATED', metadata: { source: task.source } });
-  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+  await task.populate([{ path: 'assignedBy', select: ASSIGNED_BY_FIELDS }, { path: 'assignedByUser', select: LEADER_FIELDS }]);
 
   return sendSuccess(res, task, 'Đã tạo công việc', 201);
 }
@@ -226,7 +233,7 @@ export async function updateTask(req: Request, res: Response) {
     action: onlyDeadline ? 'TASK_RESCHEDULED' : 'TASK_UPDATED',
     metadata: onlyDeadline ? { previousDeadline, newDeadline: task.deadline } : { fields: Object.keys(input) },
   });
-  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+  await task.populate([{ path: 'assignedBy', select: ASSIGNED_BY_FIELDS }, { path: 'assignedByUser', select: LEADER_FIELDS }]);
 
   return sendSuccess(res, task, 'Đã cập nhật công việc');
 }
@@ -234,6 +241,10 @@ export async function updateTask(req: Request, res: Response) {
 export async function deleteTask(req: Request, res: Response) {
   const user = getAuthUser(req);
   const task = await findOwnedTask(user._id, taskIdParam(req));
+  // Team tasks are tracked by the leader; only the leader can withdraw them (via /api/team/tasks/:id).
+  if (task.teamId && task.assignedByUser && !task.assignedByUser.equals(user._id)) {
+    throw ApiError.forbidden('Việc do trưởng nhóm giao — không thể xoá. Hãy chốt Hoàn thành / Chưa hoàn thành, hoặc nhờ trưởng nhóm thu hồi.');
+  }
   await task.deleteOne();
   await logActivity({ userId: user._id, taskId: task._id, action: 'TASK_DELETED', metadata: { title: task.title } });
   return sendSuccess(res, { _id: task._id }, 'Đã xoá công việc');
@@ -258,7 +269,7 @@ export async function toggleChecklistItem(req: Request, res: Response) {
     action: 'CHECKLIST_TOGGLED',
     metadata: { itemId: item._id, text: item.text, isDone: item.isDone },
   });
-  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+  await task.populate([{ path: 'assignedBy', select: ASSIGNED_BY_FIELDS }, { path: 'assignedByUser', select: LEADER_FIELDS }]);
 
   const doneCount = task.checklist.filter((c) => c.isDone).length;
   return sendSuccess(
@@ -302,7 +313,7 @@ export async function updateTaskStatus(req: Request, res: Response) {
       ...(deadline !== undefined && { previousDeadline, newDeadline: task.deadline }),
     },
   });
-  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+  await task.populate([{ path: 'assignedBy', select: ASSIGNED_BY_FIELDS }, { path: 'assignedByUser', select: LEADER_FIELDS }]);
 
   const messages = {
     COMPLETED: 'Đã chốt hoàn thành công việc',
@@ -335,12 +346,12 @@ export async function getCalendar(req: Request, res: Response) {
       .sort({ deadline: 1 })
       .limit(500)
       .select(fields)
-      .populate('assignedBy', ASSIGNED_BY_FIELDS),
+      .populate('assignedBy', ASSIGNED_BY_FIELDS).populate('assignedByUser', LEADER_FIELDS),
     Task.find({ userId: user._id, status: 'IN_PROGRESS', deadline: null })
       .sort({ createdAt: -1 })
       .limit(50)
       .select(fields)
-      .populate('assignedBy', ASSIGNED_BY_FIELDS),
+      .populate('assignedBy', ASSIGNED_BY_FIELDS).populate('assignedByUser', LEADER_FIELDS),
   ]);
 
   return sendSuccess(res, { scheduled, unscheduled }, 'OK');
@@ -352,7 +363,7 @@ export async function draftReplyForTask(req: Request, res: Response) {
   const user = getAuthUser(req);
   const input = draftReplySchema.parse(req.body ?? {});
   const task = await findOwnedTask(user._id, taskIdParam(req));
-  await task.populate('assignedBy', ASSIGNED_BY_FIELDS);
+  await task.populate([{ path: 'assignedBy', select: ASSIGNED_BY_FIELDS }, { path: 'assignedByUser', select: LEADER_FIELDS }]);
 
   const result = await draftReply(user._id, user.fullName, task, input);
   return sendSuccess(res, result, result.isMock ? 'Bản nháp mẫu (chưa cấu hình GEMINI_API_KEY)' : 'AI đã soạn bản nháp');
@@ -395,4 +406,12 @@ export async function bulkCreateTasks(req: Request, res: Response) {
     metadata: { count: created.length, sources: [...new Set(created.map((t) => t.source))] },
   });
   return sendSuccess(res, { items: created, count: created.length }, `Đã tạo ${created.length} công việc`, 201);
+}
+
+/* ------------------------------------------------------------ Analytics -- */
+
+export async function getTaskAnalytics(req: Request, res: Response) {
+  const user = getAuthUser(req);
+  const { rangeDays } = analyticsQuerySchema.parse(req.query);
+  return sendSuccess(res, await getAnalytics(user._id, rangeDays), 'OK');
 }

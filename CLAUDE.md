@@ -60,6 +60,14 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 - Cuộc họp → nhiều việc: `POST /api/ai/meeting` trả bản nháp (không lưu), người dùng duyệt rồi gọi `POST /api/tasks/bulk`. Người giao được khớp với danh bạ bằng `matchColleague()` (bỏ danh xưng, chức vụ trong ngoặc).
 - `telegram.service.ts`: liên kết bằng mã dùng một lần (sha256, 15 phút) qua `t.me/<bot>?start=<code>`; một chat ↔ một tài khoản (unique index một phần). Webhook luôn trả 200, lỗi được báo lại trong chat; chống trùng bằng `externalMessageId = tg:<chatId>:<messageId>`. `TELEGRAM_API_BASE` cho phép trỏ vào API giả lập khi test.
 
+## Nhóm, thanh toán, thống kê
+
+- **Quyền truy cập** tính ở `services/access.ts` (`accessInfo()`: dùng được nếu `trialExpiresAt` null, hoặc trial / `subscription.currentPeriodEnd` còn hạn). Module này không import service nào khác để tránh vòng import với `auth.middleware`.
+- **Paywall**: khi `isBillingEnabled()` (có VNPay), tài khoản hết hạn vẫn đăng nhập được (`assertCanSignIn`) nhưng `authenticate` chỉ cho qua `/api/auth/(me|logout|change-password)` và `/api/billing/*`; lỗi 403 `TRIAL_EXPIRED` kèm `paywall: true` → frontend chuyển tới `/billing`. Webhook, cron, Telegram vẫn dùng `assertAccountUsable` (chặn hẳn).
+- **VNPay** (`services/vnpay.ts`): ký HMAC-SHA512 trên chuỗi tham số đã sắp xếp, giá trị `encodeURIComponent` với dấu cách = `+` (giống `qs.stringify(..., { encode: false })` trong mẫu chính thức). Xác nhận đơn **idempotent** bằng chuyển trạng thái nguyên tử PENDING → PAID; IPN trả mã VNPay (00/01/02/04/97), không dùng envelope chung. Return URL cũng xác nhận (phòng IPN đến trễ).
+- **Nhóm** (`team.service.ts`): một người một nhóm; việc nhóm giao có `source: TEAM`, `assignedByUser`, `teamId`. Trưởng nhóm chỉ đọc việc có `teamId` của nhóm; thành viên không xoá được việc trưởng nhóm giao.
+- **Thống kê** (`analytics.service.ts`): tổng hợp bằng JS trên tối đa 5.000 task (đủ cho quy mô cá nhân), tuần tính theo `APP_TIMEZONE`. Biểu đồ dùng SVG tự viết trong `frontend/src/components/charts.tsx` (bảng màu slot 1–2 đã kiểm tra CVD), không thêm thư viện chart.
+
 ## Lịch chạy & nhắc việc
 
 - `/api/cron/daily` (Vercel Cron, 1 lần/ngày) và `/api/cron/gmail-sync` (GitHub Actions mỗi 30 phút) — xác thực bằng `CRON_SECRET` (`Authorization: Bearer` hoặc `x-cron-secret`). Không có `CRON_SECRET` → 503.

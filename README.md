@@ -119,6 +119,35 @@ Lịch chạy:
 
 Gọi tay để thử: `curl -X POST https://<backend>/api/cron/gmail-sync -H "Authorization: Bearer <CRON_SECRET>"`.
 
+## Gói trả phí & thanh toán VNPay
+
+- 3 gói (sửa giá bằng `PLAN_STARTER_PRICE`, `PLAN_PRO_PRICE`, `PLAN_PRO_YEAR_PRICE`; quota & số ngày trong `backend/src/config/plans.ts`):
+  **Cá nhân** 49.000đ/30 ngày (300 lượt AI) · **Chuyên nghiệp** 99.000đ/30 ngày (1.000 lượt) · **Chuyên nghiệp (năm)** 990.000đ/365 ngày (12.000 lượt).
+- Thanh toán thành công → cộng dồn thời gian sử dụng, đặt lại quota AI theo gói.
+- **Hết hạn thì khoá**: khi đã bật VNPay, tài khoản hết hạn vẫn đăng nhập được nhưng chỉ dùng được trang **Gói & thanh toán** để gia hạn (mọi API khác trả 403 `TRIAL_EXPIRED`). Chưa bật VNPay → giữ hành vi cũ (báo liên hệ quản trị viên).
+
+Cấu hình:
+
+1. Đăng ký merchant sandbox tại https://sandbox.vnpayment.vn/devreg → nhận **vnp_TmnCode** và **vnp_HashSecret** qua email.
+2. Backend env: `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` (giữ `VNPAY_PAYMENT_URL` sandbox khi thử; khi lên thật đổi sang URL production VNPay cấp). `PUBLIC_API_URL` phải là địa chỉ https của backend.
+3. Trong cổng merchant VNPay, khai báo **IPN URL**: `https://<backend>/api/billing/vnpay/ipn`.
+4. Thẻ test sandbox: ngân hàng NCB, số thẻ `9704198526191432198`, tên `NGUYEN VAN A`, ngày phát hành `07/15`, OTP `123456` (theo tài liệu sandbox của VNPay).
+
+API: `GET /api/billing` (gói, trạng thái, lịch sử), `POST /api/billing/checkout { plan }` → `{ paymentUrl }`, `GET /api/billing/vnpay/return` (trình duyệt quay về), `GET /api/billing/vnpay/ipn` (VNPay gọi, trả `{ RspCode, Message }`), Admin: `GET /api/admin/orders`.
+
+> Lưu ý: gói **Vercel Hobby chỉ cho dùng phi thương mại** — khi bắt đầu thu tiền, cần nâng lên Vercel Pro.
+
+## Làm việc nhóm
+
+- Admin (trang **Quản trị → Nhóm làm việc**) tạo nhóm, chọn trưởng nhóm, thêm/xoá thành viên bằng email. Mỗi người chỉ thuộc một nhóm.
+- Trưởng nhóm (trang **Nhóm**): xem tiến độ từng thành viên, **giao việc** cho một hoặc nhiều người (có AI tóm tắt), theo dõi và **thu hồi** việc. Thành viên đã kết nối Telegram được báo ngay.
+- Thành viên nhận việc nguồn `TEAM` trong trang Công việc (hiển thị tên trưởng nhóm), tự cập nhật checklist / chốt trạng thái; không xoá được việc trưởng nhóm giao.
+- Riêng tư: trưởng nhóm chỉ thấy các việc giao trong nhóm, không thấy việc cá nhân của thành viên.
+
+## Thống kê nâng cao
+
+Trang **Thống kê** (`/analytics`, 7/30/90/365 ngày): tỷ lệ hoàn thành, tỷ lệ đúng hạn, thời gian hoàn thành trung bình/trung vị, việc quá hạn, xu hướng nhận mới–hoàn thành theo tuần, **theo người giao việc** (số việc, tỷ lệ trễ hạn, thời gian hoàn thành TB — gồm cả trưởng nhóm), theo mức ưu tiên, theo ngày trong tuần, theo nguồn. API: `GET /api/tasks/analytics?rangeDays=30`.
+
 ## Telegram bot (một lần)
 
 1. Trên Telegram, nhắn **@BotFather** → `/newbot` → đặt tên (vd `WorkBrief AI`) và username kết thúc bằng `bot` (vd `WorkBriefAIBot`). BotFather trả về **token**.

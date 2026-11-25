@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { assertAccountUsable, getAuthUser } from '../middleware/auth.middleware';
+import { assertCanSignIn, getAuthUser } from '../middleware/auth.middleware';
+import { accessInfo, isBillingEnabled } from '../services/access';
 import { User, type UserDocument } from '../models/User';
 import { BCRYPT_ROUNDS } from '../seed/seedAdmin';
 import { logActivity } from '../services/activityLog.service';
@@ -26,7 +27,8 @@ export function serializeAccount(user: UserDocument) {
     ...user.toJSON(),
     aiQuotaRemaining: Math.max(0, user.aiQuotaLimit - user.aiQuotaUsed),
     trialDaysLeft,
-    capabilities: { mail: isMailConfigured() },
+    capabilities: { mail: isMailConfigured(), billing: isBillingEnabled() },
+    access: accessInfo(user),
   };
 }
 
@@ -37,7 +39,7 @@ export async function login(req: Request, res: Response) {
   const passwordOk = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
   if (!user || !passwordOk) throw ApiError.unauthorized('Email hoặc mật khẩu không đúng');
 
-  assertAccountUsable(user);
+  assertCanSignIn(user);
 
   user.lastLoginAt = new Date();
   await user.save();
@@ -62,7 +64,7 @@ export async function refresh(req: Request, res: Response) {
 
   const user = await User.findById(payload.sub);
   if (!user) throw ApiError.unauthorized('Phiên đăng nhập không còn hiệu lực, vui lòng đăng nhập lại');
-  assertAccountUsable(user); // before tokenVersion so the client learns *why* it was signed out
+  assertCanSignIn(user); // before tokenVersion so the client learns *why* it was signed out
   if (user.tokenVersion !== payload.tokenVersion) {
     throw ApiError.unauthorized('Phiên đăng nhập không còn hiệu lực, vui lòng đăng nhập lại');
   }

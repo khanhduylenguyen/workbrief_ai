@@ -82,3 +82,7 @@ export const bulkCreateTasksSchema = z.object({
     .min(1, 'Chọn ít nhất một công việc')
     .max(20, 'Tối đa 20 công việc mỗi lần'),
 });
+
+export const analyticsQuerySchema = z.object({
+  rangeDays: z.coerce.number().int().refine((n) => [7, 30, 90, 365].includes(n), 'rangeDays phải là 7, 30, 90 hoặc 365').default(30),
+});

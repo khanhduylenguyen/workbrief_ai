@@ -1,9 +1,11 @@
 "use client";
 
 import {
+  BarChart3,
   Bot,
   CalendarClock,
   CalendarDays,
+  CreditCard,
   FileText,
   LayoutDashboard,
   ListChecks,
@@ -13,6 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   UserRound,
+  UsersRound,
   Users,
   X,
 } from "lucide-react";
@@ -29,9 +32,12 @@ const NAV = [
   { href: "/calendar", label: "Lịch", icon: CalendarDays },
   { href: "/assistant", label: "Trợ lý AI", icon: Bot },
   { href: "/meetings", label: "Họp → Việc", icon: Mic },
+  { href: "/team", label: "Nhóm", icon: UsersRound },
   { href: "/reports", label: "Báo cáo tuần", icon: FileText },
+  { href: "/analytics", label: "Thống kê", icon: BarChart3 },
   { href: "/colleagues", label: "Danh bạ đồng nghiệp", icon: Users },
   { href: "/integrations", label: "Kết nối", icon: Plug },
+  { href: "/billing", label: "Gói & thanh toán", icon: CreditCard },
   { href: "/profile", label: "Hồ sơ & bảo mật", icon: UserRound },
 ] as const;
 
@@ -44,7 +50,10 @@ export function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => v
 
   const quotaPct = user.aiQuotaLimit > 0 ? (user.aiQuotaUsed / user.aiQuotaLimit) * 100 : 100;
   const quotaColor = quotaPct >= 90 ? "bg-rose-500" : quotaPct >= 70 ? "bg-amber-500" : "bg-indigo-600";
-  const trialWarn = user.trialDaysLeft !== null && user.trialDaysLeft <= 3;
+  // Access ends at the later of trial / paid period (computed by the API); null = unlimited.
+  const accessEnd = user.access ? user.access.expiresAt : user.trialExpiresAt;
+  const daysLeft = user.access ? user.access.daysLeft : user.trialDaysLeft;
+  const trialWarn = daysLeft !== null && daysLeft <= 3;
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-slate-200 bg-white">
@@ -103,20 +112,27 @@ export function Sidebar({ user, onNavigate }: { user: User; onNavigate?: () => v
           <p className="mt-1.5 text-xs text-slate-500">Còn {user.aiQuotaRemaining} lượt tóm tắt</p>
         </div>
 
-        {/* Trial */}
-        {user.trialExpiresAt ? (
-          <div
+        {/* Trial / paid plan */}
+        {accessEnd ? (
+          <Link
+            href="/billing"
+            onClick={onNavigate}
             className={cn(
-              "flex items-start gap-2.5 rounded-xl p-3 text-xs",
-              trialWarn ? "bg-amber-50 text-amber-800" : "bg-slate-50 text-slate-600",
+              "flex items-start gap-2.5 rounded-xl p-3 text-xs transition-colors",
+              trialWarn ? "bg-amber-50 text-amber-800 hover:bg-amber-100" : "bg-slate-50 text-slate-600 hover:bg-slate-100",
             )}
           >
             <CalendarClock className={cn("mt-0.5 h-4 w-4 shrink-0", trialWarn ? "text-amber-600" : "text-slate-400")} />
             <div>
-              <p className="font-medium">Dùng thử đến {formatDate(user.trialExpiresAt)}</p>
-              <p className="mt-0.5">Còn {user.trialDaysLeft} ngày</p>
+              <p className="font-medium">
+                {user.access?.paidActive ? "Gói trả phí" : "Dùng thử"} đến {formatDate(accessEnd)}
+              </p>
+              <p className="mt-0.5">
+                {daysLeft === 0 ? "Đã hết hạn" : `Còn ${daysLeft} ngày`}
+                {(trialWarn || !user.access?.paidActive) && " · Gia hạn →"}
+              </p>
             </div>
-          </div>
+          </Link>
         ) : (
           <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
             <ShieldCheck className="h-4 w-4" />

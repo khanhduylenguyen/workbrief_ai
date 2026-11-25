@@ -4,7 +4,7 @@ import { CalendarPlus, CheckCircle2, KeyRound, Send, TriangleAlert, Lock, LockOp
 import { useEffect, useState, type FormEvent } from "react";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, PageHeader, PageLoader, ProgressBar, Select } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { useAdminUsers, useCreateTrialUser, useExtendTrial, useMe, useResetQuota, useSetUserStatus, useTelegramAdminStatus, useTelegramSetup } from "@/lib/queries";
+import { useAdminUsers, useCreateTrialUser, useExtendTrial, useMe, useResetQuota, useSetUserStatus, useTelegramAdminStatus, useTelegramSetup, useAdminTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember, useUpdateTeam, useDeleteTeam, useAdminOrders } from "@/lib/queries";
 import type { AdminUser } from "@/lib/types";
 import { cn, formatDate, formatDateTime, initials } from "@/lib/utils";
 
@@ -90,6 +90,7 @@ function AdminContent({ currentUserId }: { currentUserId: string }) {
     <>
       <PageHeader title="Quản trị (Admin)" description="Cấp tài khoản dùng thử, gia hạn, reset AI quota và khóa / mở tài khoản." />
       <TelegramAdminCard />
+      <TeamsAdminCard />
 
       <div className="grid gap-6 xl:grid-cols-[340px_1fr]">
         {/* Create trial account */}
@@ -200,6 +201,7 @@ function AdminContent({ currentUserId }: { currentUserId: string }) {
           </Card>
         </div>
       </div>
+      <OrdersAdminCard />
     </>
   );
 }
@@ -371,6 +373,167 @@ function TelegramAdminCard() {
           {s.active ? "Cài lại webhook" : "Cài webhook Telegram"}
         </Button>
       )}
+    </Card>
+  );
+}
+
+/** Admin: create teams, pick the leader, add / remove members by email. */
+function TeamsAdminCard() {
+  const toast = useToast();
+  const teams = useAdminTeams();
+  const create = useCreateTeam();
+  const addMember = useAddTeamMember();
+  const removeMember = useRemoveTeamMember();
+  const updateTeam = useUpdateTeam();
+  const del = useDeleteTeam();
+  const [form, setForm] = useState({ name: "", leaderEmail: "" });
+  const [memberEmail, setMemberEmail] = useState<Record<string, string>>({});
+
+  async function run(fn: () => Promise<{ message: string }>, after?: () => void) {
+    try {
+      const { message } = await fn();
+      toast.success(message);
+      after?.();
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  return (
+    <Card className="mb-6 p-5">
+      <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-900">
+        <Users className="h-4 w-4 text-indigo-600" /> Nhóm làm việc
+      </h2>
+      <form
+        className="mb-4 flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void run(() => create.mutateAsync(form), () => setForm({ name: "", leaderEmail: "" }));
+        }}
+      >
+        <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Tên nhóm (vd: Phòng Kinh doanh)" required maxLength={120} />
+        <Input type="email" value={form.leaderEmail} onChange={(e) => setForm((f) => ({ ...f, leaderEmail: e.target.value }))} placeholder="Email trưởng nhóm" required />
+        <Button type="submit" loading={create.isPending} className="shrink-0">
+          Tạo nhóm
+        </Button>
+      </form>
+
+      {teams.isLoading ? (
+        <PageLoader />
+      ) : !teams.data?.length ? (
+        <p className="text-sm text-slate-500">Chưa có nhóm nào. Mỗi người chỉ thuộc một nhóm; trưởng nhóm giao việc và xem tiến độ các việc trong nhóm.</p>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {teams.data.map((t) => (
+            <div key={t._id} className="rounded-xl border border-slate-200 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500">
+                    Trưởng nhóm: <b>{t.leaderId?.fullName}</b> · {t.memberIds.length} thành viên · {t.openTaskCount}/{t.taskCount} việc đang làm
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="hover:text-rose-600"
+                  onClick={() => window.confirm(`Xoá nhóm "${t.name}"? Các việc đã giao vẫn giữ nguyên ở từng người.`) && void run(() => del.mutateAsync(t._id))}
+                >
+                  Xoá nhóm
+                </Button>
+              </div>
+              <ul className="mt-3 space-y-1.5">
+                {t.memberIds.map((m) => (
+                  <li key={m._id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 truncate">
+                      {m.fullName} <span className="text-xs text-slate-400">{m.email}</span>
+                      {m._id === t.leaderId?._id && <Badge className="ml-1.5 bg-emerald-50 text-emerald-700">Trưởng nhóm</Badge>}
+                    </span>
+                    {m._id !== t.leaderId?._id && (
+                      <span className="flex shrink-0 gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => void run(() => updateTeam.mutateAsync({ teamId: t._id, leaderEmail: m.email }))} title="Đặt làm trưởng nhóm">
+                          Làm trưởng
+                        </Button>
+                        <Button variant="ghost" size="sm" className="hover:text-rose-600" onClick={() => void run(() => removeMember.mutateAsync({ teamId: t._id, userId: m._id }))}>
+                          Xoá
+                        </Button>
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <form
+                className="mt-3 flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const email = memberEmail[t._id]?.trim();
+                  if (email) void run(() => addMember.mutateAsync({ teamId: t._id, email }), () => setMemberEmail((s) => ({ ...s, [t._id]: "" })));
+                }}
+              >
+                <Input
+                  type="email"
+                  value={memberEmail[t._id] ?? ""}
+                  onChange={(e) => setMemberEmail((s) => ({ ...s, [t._id]: e.target.value }))}
+                  placeholder="Email thành viên cần thêm"
+                  className="h-9"
+                />
+                <Button type="submit" size="sm" variant="outline" className="h-9 shrink-0" loading={addMember.isPending}>
+                  Thêm
+                </Button>
+              </form>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Admin: recent VNPay orders across all users. */
+function OrdersAdminCard() {
+  const orders = useAdminOrders();
+  const vnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n) + "đ";
+  const paid = (orders.data ?? []).filter((o) => o.status === "PAID");
+  const revenue = paid.reduce((s, o) => s + o.amount, 0);
+  if (!orders.data?.length) return null;
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold text-slate-900">Đơn thanh toán gần đây</h2>
+        <p className="text-sm text-slate-600">
+          {paid.length} đơn đã thanh toán · <b>{vnd(revenue)}</b>
+        </p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
+              <th className="py-2 pr-2 font-medium">Mã đơn</th>
+              <th className="px-2 py-2 font-medium">Khách hàng</th>
+              <th className="px-2 py-2 font-medium">Gói</th>
+              <th className="px-2 py-2 text-right font-medium">Số tiền</th>
+              <th className="px-2 py-2 font-medium">Trạng thái</th>
+              <th className="py-2 pl-2 font-medium">Thời gian</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {orders.data.map((o) => (
+              <tr key={o._id}>
+                <td className="py-2 pr-2 font-mono text-xs text-slate-600">{o.txnRef}</td>
+                <td className="px-2 py-2">{typeof o.userId === "object" ? o.userId.email : "—"}</td>
+                <td className="px-2 py-2">{o.plan}</td>
+                <td className="px-2 py-2 text-right tabular-nums">{vnd(o.amount)}</td>
+                <td className="px-2 py-2">
+                  <Badge className={o.status === "PAID" ? "bg-emerald-50 text-emerald-700" : o.status === "FAILED" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"}>
+                    {o.status === "PAID" ? "Đã thanh toán" : o.status === "FAILED" ? "Thất bại" : "Chờ"}
+                  </Badge>
+                </td>
+                <td className="py-2 pl-2 text-xs text-slate-500">{formatDateTime(o.paidAt ?? o.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   );
 }

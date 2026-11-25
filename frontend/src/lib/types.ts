@@ -1,6 +1,6 @@
 export type UserRole = "ADMIN" | "USER";
 export type UserStatus = "ACTIVE" | "SUSPENDED";
-export type TaskSource = "MANUAL" | "GMAIL" | "ZALO" | "TELEGRAM" | "MEETING";
+export type TaskSource = "MANUAL" | "GMAIL" | "ZALO" | "TELEGRAM" | "MEETING" | "TEAM";
 export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type TaskStatus = "IN_PROGRESS" | "COMPLETED" | "INCOMPLETE";
 
@@ -36,7 +36,9 @@ export interface User {
   gmailIntegration: { isConnected: boolean; email: string | null; lastSyncedAt?: string | null };
   settings: { emailDigest: boolean; autoGmailSync: boolean };
   lastDigestAt: string | null;
-  capabilities?: { mail: boolean };
+  capabilities?: { mail: boolean; billing?: boolean };
+  access?: AccessInfo;
+  subscription?: { plan: PlanCode | null; currentPeriodEnd: string | null };
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -83,6 +85,8 @@ export interface Task {
   checklist: ChecklistItem[];
   source: TaskSource;
   assignedBy: ColleagueRef | null;
+  assignedByUser?: { _id: string; fullName: string; email: string } | null;
+  teamId?: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   deadline: string | null;
@@ -263,4 +267,133 @@ export interface TelegramStatus {
   pendingUpdates?: number;
   lastError?: string | null;
   lastErrorAt?: string | null;
+}
+
+export interface AssignerStats {
+  key: string;
+  kind: "colleague" | "leader" | "none";
+  name: string;
+  position: string | null;
+  total: number;
+  completed: number;
+  incomplete: number;
+  open: number;
+  overdueOpen: number;
+  late: number;
+  withDeadline: number;
+  lateRate: number | null;
+  avgCompletionHours: number | null;
+}
+
+export interface Analytics {
+  rangeDays: number;
+  from: string;
+  to: string;
+  truncated: boolean;
+  summary: {
+    created: number;
+    completed: number;
+    incomplete: number;
+    completionRate: number | null;
+    onTimeRate: number | null;
+    completedWithDeadline: number;
+    completedLate: number;
+    avgCompletionHours: number | null;
+    medianCompletionHours: number | null;
+    overdueOpen: number;
+  };
+  byAssigner: AssignerStats[];
+  byPriority: { priority: TaskPriority; total: number; completed: number; completionRate: number | null; avgCompletionHours: number | null }[];
+  bySource: { source: TaskSource; total: number }[];
+  weekly: { weekStart: string; label: string; created: number; completed: number }[];
+  byWeekday: { weekday: number; label: string; created: number }[];
+}
+
+export interface TeamMemberStats {
+  _id: string;
+  fullName: string;
+  email: string;
+  isLeader: boolean;
+  total: number;
+  open: number;
+  completed: number;
+  incomplete: number;
+  overdue: number;
+  completionRate: number | null;
+  lastActivityAt: string | null;
+}
+
+export interface MyTeam {
+  team: { _id: string; name: string };
+  role: "LEADER" | "MEMBER";
+  leader: { _id: string; fullName: string; email: string } | null;
+  members: { _id: string; fullName: string; email: string; isLeader: boolean }[];
+  memberStats: TeamMemberStats[] | null;
+}
+
+export interface TeamTask {
+  _id: string;
+  userId: { _id: string; fullName: string; email: string };
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  deadline: string | null;
+  checklist: ChecklistItem[];
+  completedAt: string | null;
+  incompleteReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminTeam {
+  _id: string;
+  name: string;
+  leaderId: { _id: string; fullName: string; email: string; status: UserStatus };
+  memberIds: { _id: string; fullName: string; email: string; status: UserStatus }[];
+  taskCount: number;
+  openTaskCount: number;
+  createdAt: string;
+}
+
+export type PlanCode = "STARTER" | "PRO" | "PRO_YEAR";
+
+export interface AccessInfo {
+  active: boolean;
+  unlimited: boolean;
+  paidActive: boolean;
+  plan: PlanCode | null;
+  expiresAt: string | null;
+  daysLeft: number | null;
+}
+
+export interface Plan {
+  code: PlanCode;
+  name: string;
+  price: number;
+  days: number;
+  aiQuota: number;
+  features: string[];
+  highlight?: boolean;
+}
+
+export interface Order {
+  _id: string;
+  plan: PlanCode;
+  amount: number;
+  days: number;
+  txnRef: string;
+  status: "PENDING" | "PAID" | "FAILED";
+  bankCode: string | null;
+  paidAt: string | null;
+  periodEnd: string | null;
+  createdAt: string;
+  userId?: { _id: string; fullName: string; email: string } | string;
+}
+
+export interface BillingOverview {
+  enabled: boolean;
+  access: AccessInfo;
+  subscription: { plan: PlanCode | null; currentPeriodEnd: string | null };
+  plans: Plan[];
+  orders: Order[];
 }

@@ -5,14 +5,21 @@ import { useRouter } from "next/navigation";
 import { apiGet, apiSend } from "./api";
 import { authStorage } from "./auth-storage";
 import type {
+  AdminTeam,
   AdminUser,
   AiSummary,
+  Analytics,
   AssistantReply,
+  BillingOverview,
   CalendarData,
   DraftReply,
   FilePayload,
   MediaSummary,
   MeetingResult,
+  MyTeam,
+  Order,
+  PlanCode,
+  TeamTask,
   TelegramStatus,
   ReplyChannel,
   ReplyTone,
@@ -466,4 +473,100 @@ export function useTelegramSetup() {
     mutationFn: () => apiSend<TelegramStatus>("post", "/admin/telegram/setup"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "telegram"] }),
   });
+}
+
+/* ------------------------------------------------------------ Analytics -- */
+
+export function useAnalytics(rangeDays: number) {
+  return useQuery({
+    queryKey: ["tasks", "analytics", rangeDays],
+    queryFn: () => apiGet<Analytics>("/tasks/analytics", { params: { rangeDays } }),
+    placeholderData: (prev) => prev,
+  });
+}
+
+/* ----------------------------------------------------------------- Team -- */
+
+export function useMyTeam() {
+  return useQuery({ queryKey: ["team"], queryFn: () => apiGet<MyTeam | null>("/team") });
+}
+
+export function useTeamTasks(filters: { memberId?: string; status?: TaskStatus }, enabled = true) {
+  return useQuery({
+    queryKey: ["team", "tasks", filters],
+    queryFn: () => apiGet<TeamTask[]>("/team/tasks", { params: filters }),
+    enabled,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useAssignTeamTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      memberIds: string[];
+      title: string;
+      aiSummary?: string;
+      rawContent?: string;
+      checklist?: { text: string; isDone: boolean }[];
+      priority: TaskPriority;
+      deadline?: string | null;
+    }) => apiSend<{ count: number }>("post", "/team/tasks", body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useRecallTeamTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: string) => apiSend<null>("delete", `/team/tasks/${taskId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["team"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}
+
+export function useAdminTeams() {
+  return useQuery({ queryKey: ["admin", "teams"], queryFn: () => apiGet<AdminTeam[]>("/admin/teams") });
+}
+
+function useAdminTeamMutation<T>(fn: (v: T) => Promise<{ message: string }>) {
+  const qc = useQueryClient();
+  return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "teams"] }) });
+}
+
+export const useCreateTeam = () =>
+  useAdminTeamMutation((v: { name: string; leaderEmail: string }) => apiSend("post", "/admin/teams", v));
+export const useAddTeamMember = () =>
+  useAdminTeamMutation((v: { teamId: string; email: string }) => apiSend("post", `/admin/teams/${v.teamId}/members`, { email: v.email }));
+export const useRemoveTeamMember = () =>
+  useAdminTeamMutation((v: { teamId: string; userId: string }) => apiSend("delete", `/admin/teams/${v.teamId}/members/${v.userId}`));
+export const useUpdateTeam = () =>
+  useAdminTeamMutation((v: { teamId: string; name?: string; leaderEmail?: string }) =>
+    apiSend("patch", `/admin/teams/${v.teamId}`, { name: v.name, leaderEmail: v.leaderEmail }),
+  );
+export const useDeleteTeam = () => useAdminTeamMutation((teamId: string) => apiSend("delete", `/admin/teams/${teamId}`));
+
+/* -------------------------------------------------------------- Billing -- */
+
+export function useBilling() {
+  return useQuery({ queryKey: ["billing"], queryFn: () => apiGet<BillingOverview>("/billing") });
+}
+
+/** Creates a VNPay order and sends the browser to the payment page. */
+export function useCheckout() {
+  return useMutation({
+    mutationFn: async (plan: PlanCode) => {
+      const { data } = await apiSend<{ paymentUrl: string }>("post", "/billing/checkout", { plan });
+      window.location.assign(data.paymentUrl);
+    },
+  });
+}
+
+export function useAdminOrders() {
+  return useQuery({ queryKey: ["admin", "orders"], queryFn: () => apiGet<Order[]>("/admin/orders") });
 }
