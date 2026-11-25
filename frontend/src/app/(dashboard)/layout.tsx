@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, Sparkles } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Spinner } from "@/components/ui/primitives";
@@ -27,14 +27,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [me.isError, router]);
 
-  // Paywall: an expired account can only use the billing page until it renews.
-  const pathname = usePathname();
-  const expired = me.data?.access ? !me.data.access.active : false;
-  useEffect(() => {
-    if (expired && pathname !== "/billing") router.replace("/billing");
-  }, [expired, pathname, router]);
-
-  if (!hasToken || !me.data || (expired && pathname !== "/billing")) {
+  if (!hasToken || !me.data) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner className="h-8 w-8" />

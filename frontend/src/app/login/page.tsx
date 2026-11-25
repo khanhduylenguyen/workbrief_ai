@@ -55,8 +55,7 @@ export default function LoginPage() {
       });
       authStorage.setTokens(data.tokens);
       qc.setQueryData(qk.me, data.user);
-      // Expired account (online payment enabled) → straight to the billing page to renew.
-      router.replace(data.user.access && !data.user.access.active ? "/billing" : "/");
+      router.replace("/");
     } catch (err) {
       const apiErr = toApiError(err);
       setSubmitError({ message: apiErr.message, code: apiErr.code });

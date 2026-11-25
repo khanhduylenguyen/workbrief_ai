@@ -106,15 +106,6 @@ api.interceptors.response.use(
     const isAuthFree = AUTH_FREE_PATHS.some((p) => url.includes(p));
     const apiErr = toApiError(error);
 
-    // Expired account with online payment enabled → send to the billing page (paywall) instead of logging out.
-    if (!isAuthFree && status === 403 && apiErr.code === "TRIAL_EXPIRED" && (apiErr.details as { paywall?: boolean } | null)?.paywall) {
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/billing")) {
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = "/billing";
-      }
-      return Promise.reject(apiErr);
-    }
-
     // Account became suspended / trial expired mid-session → kick out with a clear reason.
     if (!isAuthFree && status === 403 && (apiErr.code === "ACCOUNT_SUSPENDED" || apiErr.code === "TRIAL_EXPIRED")) {
       forceLogout({ message: apiErr.message, code: apiErr.code });

@@ -34,15 +34,6 @@ const envSchema = z.object({
   GMAIL_SYNC_MAX_MESSAGES: z.coerce.number().int().min(1).max(50).default(10),
   GMAIL_SYNC_NEWER_THAN_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 
-  // VNPay (https://sandbox.vnpayment.vn/devreg). Empty TMN code / secret = online payment disabled.
-  VNPAY_TMN_CODE: z.string().optional().default(''),
-  VNPAY_HASH_SECRET: z.string().optional().default(''),
-  VNPAY_PAYMENT_URL: z.string().default('https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
-  // Plan prices in VND (override to change pricing without code changes).
-  PLAN_STARTER_PRICE: z.coerce.number().int().positive().default(49_000),
-  PLAN_PRO_PRICE: z.coerce.number().int().positive().default(99_000),
-  PLAN_PRO_YEAR_PRICE: z.coerce.number().int().positive().default(990_000),
-
   // Telegram bot (create with @BotFather). Leave TELEGRAM_BOT_TOKEN empty to disable.
   TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
   TELEGRAM_BOT_USERNAME: z.string().optional().default(''),

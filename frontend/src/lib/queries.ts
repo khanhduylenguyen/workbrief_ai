@@ -10,15 +10,12 @@ import type {
   AiSummary,
   Analytics,
   AssistantReply,
-  BillingOverview,
   CalendarData,
   DraftReply,
   FilePayload,
   MediaSummary,
   MeetingResult,
   MyTeam,
-  Order,
-  PlanCode,
   TeamTask,
   TelegramStatus,
   ReplyChannel,
@@ -551,22 +548,3 @@ export const useUpdateTeam = () =>
   );
 export const useDeleteTeam = () => useAdminTeamMutation((teamId: string) => apiSend("delete", `/admin/teams/${teamId}`));
 
-/* -------------------------------------------------------------- Billing -- */
-
-export function useBilling() {
-  return useQuery({ queryKey: ["billing"], queryFn: () => apiGet<BillingOverview>("/billing") });
-}
-
-/** Creates a VNPay order and sends the browser to the payment page. */
-export function useCheckout() {
-  return useMutation({
-    mutationFn: async (plan: PlanCode) => {
-      const { data } = await apiSend<{ paymentUrl: string }>("post", "/billing/checkout", { plan });
-      window.location.assign(data.paymentUrl);
-    },
-  });
-}
-
-export function useAdminOrders() {
-  return useQuery({ queryKey: ["admin", "orders"], queryFn: () => apiGet<Order[]>("/admin/orders") });
-}

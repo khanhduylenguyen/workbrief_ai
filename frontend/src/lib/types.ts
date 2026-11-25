@@ -36,9 +36,7 @@ export interface User {
   gmailIntegration: { isConnected: boolean; email: string | null; lastSyncedAt?: string | null };
   settings: { emailDigest: boolean; autoGmailSync: boolean };
   lastDigestAt: string | null;
-  capabilities?: { mail: boolean; billing?: boolean };
-  access?: AccessInfo;
-  subscription?: { plan: PlanCode | null; currentPeriodEnd: string | null };
+  capabilities?: { mail: boolean };
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -355,45 +353,3 @@ export interface AdminTeam {
   createdAt: string;
 }
 
-export type PlanCode = "STARTER" | "PRO" | "PRO_YEAR";
-
-export interface AccessInfo {
-  active: boolean;
-  unlimited: boolean;
-  paidActive: boolean;
-  plan: PlanCode | null;
-  expiresAt: string | null;
-  daysLeft: number | null;
-}
-
-export interface Plan {
-  code: PlanCode;
-  name: string;
-  price: number;
-  days: number;
-  aiQuota: number;
-  features: string[];
-  highlight?: boolean;
-}
-
-export interface Order {
-  _id: string;
-  plan: PlanCode;
-  amount: number;
-  days: number;
-  txnRef: string;
-  status: "PENDING" | "PAID" | "FAILED";
-  bankCode: string | null;
-  paidAt: string | null;
-  periodEnd: string | null;
-  createdAt: string;
-  userId?: { _id: string; fullName: string; email: string } | string;
-}
-
-export interface BillingOverview {
-  enabled: boolean;
-  access: AccessInfo;
-  subscription: { plan: PlanCode | null; currentPeriodEnd: string | null };
-  plans: Plan[];
-  orders: Order[];
-}

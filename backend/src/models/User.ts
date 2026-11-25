@@ -26,12 +26,6 @@ export interface TelegramIntegration {
   linkCodeExpiresAt: Date | null;
 }
 
-export interface Subscription {
-  plan: string | null;
-  /** Paid access lasts until this instant (independent of trialExpiresAt). */
-  currentPeriodEnd: Date | null;
-}
-
 export interface UserSettings {
   /** Daily email listing overdue / due-today / due-tomorrow tasks. */
   emailDigest: boolean;
@@ -51,7 +45,6 @@ export interface IUser {
   webhookApiKey: string;
   gmailIntegration: GmailIntegration;
   telegramIntegration: TelegramIntegration;
-  subscription: Subscription;
   settings: UserSettings;
   lastDigestAt: Date | null;
   /** Incremented on logout / password change / suspension to revoke issued JWTs. */
@@ -87,13 +80,6 @@ const userSchema = new Schema<IUser>(
     aiQuotaUsed: { type: Number, default: 0, min: 0 },
     webhookApiKey: { type: String, unique: true, default: generateWebhookApiKey },
     gmailIntegration: { type: gmailIntegrationSchema, default: () => ({}) },
-    subscription: {
-      type: new Schema<Subscription>(
-        { plan: { type: String, default: null }, currentPeriodEnd: { type: Date, default: null } },
-        { _id: false },
-      ),
-      default: () => ({}),
-    },
     telegramIntegration: {
       type: new Schema<TelegramIntegration>(
         {

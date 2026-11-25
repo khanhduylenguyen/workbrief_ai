@@ -4,7 +4,7 @@ import { CalendarPlus, CheckCircle2, KeyRound, Send, TriangleAlert, Lock, LockOp
 import { useEffect, useState, type FormEvent } from "react";
 import { Badge, Button, Card, EmptyState, ErrorBox, Field, Input, PageHeader, PageLoader, ProgressBar, Select } from "@/components/ui/primitives";
 import { useToast } from "@/components/ui/Toast";
-import { useAdminUsers, useCreateTrialUser, useExtendTrial, useMe, useResetQuota, useSetUserStatus, useTelegramAdminStatus, useTelegramSetup, useAdminTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember, useUpdateTeam, useDeleteTeam, useAdminOrders } from "@/lib/queries";
+import { useAdminUsers, useCreateTrialUser, useExtendTrial, useMe, useResetQuota, useSetUserStatus, useTelegramAdminStatus, useTelegramSetup, useAdminTeams, useCreateTeam, useAddTeamMember, useRemoveTeamMember, useUpdateTeam, useDeleteTeam } from "@/lib/queries";
 import type { AdminUser } from "@/lib/types";
 import { cn, formatDate, formatDateTime, initials } from "@/lib/utils";
 
@@ -201,7 +201,6 @@ function AdminContent({ currentUserId }: { currentUserId: string }) {
           </Card>
         </div>
       </div>
-      <OrdersAdminCard />
     </>
   );
 }
@@ -489,51 +488,3 @@ function TeamsAdminCard() {
   );
 }
 
-/** Admin: recent VNPay orders across all users. */
-function OrdersAdminCard() {
-  const orders = useAdminOrders();
-  const vnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n) + "đ";
-  const paid = (orders.data ?? []).filter((o) => o.status === "PAID");
-  const revenue = paid.reduce((s, o) => s + o.amount, 0);
-  if (!orders.data?.length) return null;
-  return (
-    <Card className="mt-6 p-5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold text-slate-900">Đơn thanh toán gần đây</h2>
-        <p className="text-sm text-slate-600">
-          {paid.length} đơn đã thanh toán · <b>{vnd(revenue)}</b>
-        </p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
-              <th className="py-2 pr-2 font-medium">Mã đơn</th>
-              <th className="px-2 py-2 font-medium">Khách hàng</th>
-              <th className="px-2 py-2 font-medium">Gói</th>
-              <th className="px-2 py-2 text-right font-medium">Số tiền</th>
-              <th className="px-2 py-2 font-medium">Trạng thái</th>
-              <th className="py-2 pl-2 font-medium">Thời gian</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {orders.data.map((o) => (
-              <tr key={o._id}>
-                <td className="py-2 pr-2 font-mono text-xs text-slate-600">{o.txnRef}</td>
-                <td className="px-2 py-2">{typeof o.userId === "object" ? o.userId.email : "—"}</td>
-                <td className="px-2 py-2">{o.plan}</td>
-                <td className="px-2 py-2 text-right tabular-nums">{vnd(o.amount)}</td>
-                <td className="px-2 py-2">
-                  <Badge className={o.status === "PAID" ? "bg-emerald-50 text-emerald-700" : o.status === "FAILED" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"}>
-                    {o.status === "PAID" ? "Đã thanh toán" : o.status === "FAILED" ? "Thất bại" : "Chờ"}
-                  </Badge>
-                </td>
-                <td className="py-2 pl-2 text-xs text-slate-500">{formatDateTime(o.paidAt ?? o.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-  );
-}
