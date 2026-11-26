@@ -18,6 +18,7 @@ export const SOURCE_LABEL: Record<TaskSource, string> = {
   TELEGRAM: "Telegram",
   MEETING: "Cuộc họp",
   TEAM: "Nhóm",
+  GUIDE: "Sổ tay",
 };
 
 export const PRIORITY_LABEL: Record<TaskPriority, string> = {
@@ -47,6 +48,7 @@ export const SOURCE_STYLE: Record<TaskSource, string> = {
   TELEGRAM: "bg-sky-50 text-sky-600",
   MEETING: "bg-violet-50 text-violet-600",
   TEAM: "bg-emerald-50 text-emerald-700",
+  GUIDE: "bg-amber-50 text-amber-700",
 };
 
 const dateTimeFmt = new Intl.DateTimeFormat("vi-VN", {

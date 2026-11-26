@@ -75,7 +75,7 @@ export function normaliseMedia(input: MediaInput): GeminiMedia & { kind: MediaKi
   return { mimeType, data, kind, bytes };
 }
 
-function requireGeminiForMedia(): void {
+export function requireGeminiForMedia(): void {
   if (!isGeminiConfigured()) {
     throw new ApiError(503, 'Cần cấu hình GEMINI_API_KEY để AI đọc ảnh, PDF và ghi âm (chế độ mẫu không hỗ trợ).', {
       code: 'AI_MEDIA_REQUIRES_GEMINI',
@@ -83,7 +83,7 @@ function requireGeminiForMedia(): void {
   }
 }
 
-const KIND_VI: Record<MediaKind, string> = { image: 'ảnh', pdf: 'tài liệu PDF', audio: 'đoạn ghi âm' };
+export const KIND_VI: Record<MediaKind, string> = { image: 'ảnh', pdf: 'tài liệu PDF', audio: 'đoạn ghi âm' };
 
 /* ------------------------------------------------ Single task from media -- */
 
@@ -278,7 +278,7 @@ function normaliseName(s: string): string {
 }
 
 /** Match "chị Hương" / "Hương" / "anh Nam" against contacts. */
-function matchColleague(name: string | null | undefined, colleagues: { _id: Types.ObjectId; name: string }[]): string | null {
+export function matchColleague(name: string | null | undefined, colleagues: { _id: Types.ObjectId; name: string }[]): string | null {
   if (!name?.trim()) return null;
   // "Chị Hương (Trưởng phòng KD)" / "Anh Nam - Kế toán" → "huong" / "nam"
   const strip = (s: string) =>

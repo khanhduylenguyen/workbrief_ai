@@ -23,6 +23,10 @@ import type {
   WeeklyReport,
   Colleague,
   GmailSyncResult,
+  Guide,
+  GuideDraft,
+  GuideInput,
+  GuideList,
   IntegrationOverview,
   Paginated,
   Task,
@@ -548,3 +552,70 @@ export const useUpdateTeam = () =>
   );
 export const useDeleteTeam = () => useAdminTeamMutation((teamId: string) => apiSend("delete", `/admin/teams/${teamId}`));
 
+
+/* ---------------------------------------------------------------- Guides -- */
+
+export function useGuides(filters: { search?: string; topic?: string }) {
+  return useQuery({
+    queryKey: ["guides", filters],
+    queryFn: () => apiGet<GuideList>("/guides", { params: { limit: 100, ...filters } }),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useGuide(id: string | null) {
+  return useQuery({ queryKey: ["guide", id], queryFn: () => apiGet<Guide>(`/guides/${id}`), enabled: !!id });
+}
+
+export function useGuideExtract() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { file?: FilePayload; text?: string }) => apiSend<GuideDraft>("post", "/guides/ai-extract", body, { timeout: 240_000 }),
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
+}
+
+function useGuideSaved() {
+  const qc = useQueryClient();
+  return ({ data }: { data: Guide }) => {
+    qc.setQueryData(["guide", data._id], data);
+    qc.invalidateQueries({ queryKey: ["guides"] });
+  };
+}
+
+export function useCreateGuide() {
+  const onSaved = useGuideSaved();
+  return useMutation({ mutationFn: (input: GuideInput) => apiSend<Guide>("post", "/guides", input), onSuccess: onSaved });
+}
+
+export function useUpdateGuide() {
+  const onSaved = useGuideSaved();
+  return useMutation({
+    mutationFn: ({ id, ...input }: Partial<GuideInput> & { id: string }) => apiSend<Guide>("patch", `/guides/${id}`, input),
+    onSuccess: onSaved,
+  });
+}
+
+export function useDeleteGuide() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiSend("delete", `/guides/${id}`),
+    onSuccess: (_r, id) => {
+      qc.removeQueries({ queryKey: ["guide", id] });
+      qc.invalidateQueries({ queryKey: ["guides"] });
+    },
+  });
+}
+
+export function useGuideTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; todoIds: string[]; priority: TaskPriority; deadline: string | null; includeSteps: boolean }) =>
+      apiSend<{ guide: Guide; count: number }>("post", `/guides/${id}/tasks`, body),
+    onSuccess: ({ data }) => {
+      qc.setQueryData(["guide", data.guide._id], data.guide);
+      qc.invalidateQueries({ queryKey: ["guides"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+}

@@ -1,6 +1,6 @@
 export type UserRole = "ADMIN" | "USER";
 export type UserStatus = "ACTIVE" | "SUSPENDED";
-export type TaskSource = "MANUAL" | "GMAIL" | "ZALO" | "TELEGRAM" | "MEETING" | "TEAM";
+export type TaskSource = "MANUAL" | "GMAIL" | "ZALO" | "TELEGRAM" | "MEETING" | "TEAM" | "GUIDE";
 export type TaskPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type TaskStatus = "IN_PROGRESS" | "COMPLETED" | "INCOMPLETE";
 
@@ -353,3 +353,81 @@ export interface AdminTeam {
   createdAt: string;
 }
 
+
+/* ------------------------------------------------------- How-to guides -- */
+
+export type GuideInputKind = "manual" | "text" | "audio" | "image" | "pdf";
+
+export interface GuideStep {
+  _id?: string;
+  text: string;
+  detail: string;
+}
+
+export interface GuideTaskRef {
+  _id: string;
+  title: string;
+  status: TaskStatus;
+  deadline: string | null;
+}
+
+export interface GuideTodo {
+  _id?: string;
+  text: string;
+  isDone: boolean;
+  /** Populated on the detail endpoint; a plain id elsewhere. */
+  taskId: string | GuideTaskRef | null;
+}
+
+export interface Guide {
+  _id: string;
+  title: string;
+  topic: string;
+  taughtBy: string;
+  colleagueId: string | Pick<Colleague, "_id" | "name" | "position"> | null;
+  summary: string;
+  steps: GuideStep[];
+  tips: string[];
+  todos: GuideTodo[];
+  /** Not included in list responses. */
+  rawNote?: string;
+  inputKind: GuideInputKind;
+  isMock: boolean;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GuideList extends Paginated<Guide> {
+  topics: string[];
+}
+
+/** AI result (not saved yet). */
+export interface GuideDraft {
+  title: string;
+  topic: string;
+  taughtBy: string;
+  colleagueId: string | null;
+  summary: string;
+  steps: GuideStep[];
+  tips: string[];
+  todos: { text: string; isDone: boolean }[];
+  rawNote: string;
+  inputKind: GuideInputKind;
+  isMock: boolean;
+}
+
+export interface GuideInput {
+  title: string;
+  topic: string;
+  taughtBy: string;
+  colleagueId: string | null;
+  summary: string;
+  steps: { text: string; detail: string }[];
+  tips: string[];
+  todos: { _id?: string; text: string; isDone: boolean; taskId?: string | null }[];
+  rawNote?: string;
+  inputKind?: GuideInputKind;
+  isMock?: boolean;
+  pinned?: boolean;
+}

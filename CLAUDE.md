@@ -65,6 +65,14 @@ Web note & tóm tắt công việc bằng AI (Gemini), nhận việc từ Gmail 
 - **Nhóm** (`team.service.ts`): một người một nhóm; việc nhóm giao có `source: TEAM`, `assignedByUser`, `teamId`. Trưởng nhóm chỉ đọc việc có `teamId` của nhóm; thành viên không xoá được việc trưởng nhóm giao.
 - **Thống kê** (`analytics.service.ts`): tổng hợp bằng JS trên tối đa 5.000 task (đủ cho quy mô cá nhân), tuần tính theo `APP_TIMEZONE`. Biểu đồ dùng SVG tự viết trong `frontend/src/components/charts.tsx` (bảng màu slot 1–2 đã kiểm tra CVD), không thêm thư viện chart.
 
+## Sổ tay hướng dẫn
+
+- `guide.service.ts` + model `Guide` (`steps[{text, detail}]`, `tips[]`, `todos[{text, isDone, taskId}]`, `rawNote` giữ ghi chép gốc). `POST /api/guides/ai-extract` chỉ trả bản nháp (giống luồng họp), nhận `text` và/hoặc `file` cùng lúc; body limit 12 MB như các route file khác.
+- Người hướng dẫn khớp danh bạ bằng `matchColleague()` (export từ `media.service.ts`); `colleagueId` và `todos[].taskId` luôn được lọc theo chủ sở hữu trước khi lưu.
+- Việc cần làm → công việc nguồn `GUIDE` (`POST /:id/tasks`), bỏ qua todo đã có `taskId`. Trợ lý AI nhận 40 hướng dẫn gần nhất trong prompt.
+- Bản mock: regex từ khoá phải dùng lookahead `(?=[\s:]|$)` (khoảng trắng hoặc dấu hai chấm) thay cho ranh giới từ `\b` (vì `\b` của JS không coi chữ có dấu như “ý” là ký tự từ); từ cảnh báo (“không được”, “đừng”) giữ nguyên trong lưu ý.
+- Frontend: `/guides` (danh sách + chi tiết qua `?id=`, cần Suspense), `/guides/new`; editor dùng chung `components/guides/GuideEditor.tsx`; ghi âm qua hook `lib/useRecorder.ts`.
+
 ## Lịch chạy & nhắc việc
 
 - `/api/cron/daily` (Vercel Cron, 1 lần/ngày) và `/api/cron/gmail-sync` (GitHub Actions mỗi 30 phút) — xác thực bằng `CRON_SECRET` (`Authorization: Bearer` hoặc `x-cron-secret`). Không có `CRON_SECRET` → 503.

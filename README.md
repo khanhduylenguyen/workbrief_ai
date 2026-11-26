@@ -130,6 +130,17 @@ Gọi tay để thử: `curl -X POST https://<backend>/api/cron/gmail-sync -H "A
 
 Trang **Thống kê** (`/analytics`, 7/30/90/365 ngày): tỷ lệ hoàn thành, tỷ lệ đúng hạn, thời gian hoàn thành trung bình/trung vị, việc quá hạn, xu hướng nhận mới–hoàn thành theo tuần, **theo người giao việc** (số việc, tỷ lệ trễ hạn, thời gian hoàn thành TB — gồm cả trưởng nhóm), theo mức ưu tiên, theo ngày trong tuần, theo nguồn. API: `GET /api/tasks/analytics?rangeDays=30`.
 
+## Sổ tay hướng dẫn
+
+Khi được anh chị chỉ việc, mở **Sổ tay hướng dẫn → Ghi hướng dẫn mới** (`/guides/new`):
+
+- Gõ vội ghi chép, **ghi âm** ngay trên trình duyệt (tối đa 12 phút) hoặc đính kèm **ảnh chụp màn hình / PDF** — có thể vừa gõ vừa đính kèm.
+- Bấm **AI sắp xếp thành hướng dẫn** (1 lượt AI): AI viết tiêu đề “Cách …”, chủ đề, người hướng dẫn (khớp danh bạ), tóm tắt, **các bước làm** theo thứ tự (kèm chi tiết bấm vào đâu, file nào), **lưu ý** và **việc cần làm** sau buổi hướng dẫn. Bạn sửa lại rồi lưu. Có thể **tự nhập không dùng AI**.
+- Trang `/guides`: tìm kiếm trong tiêu đề, bước, lưu ý, ghi chép gốc; lọc theo chủ đề; ghim hướng dẫn hay dùng; sao chép dạng văn bản; bấm từng bước để đánh dấu khi làm theo.
+- **Việc cần làm** → chọn rồi bấm **Tạo công việc** (nguồn `GUIDE` — “Sổ tay”), có thể đưa các bước vào checklist, đặt ưu tiên / hạn chót; việc đã tạo hiện nút “Xem việc”.
+- **Trợ lý AI** đọc được sổ tay: hỏi “cách xuất hoá đơn MISA thế nào?” sẽ được trả lời theo các bước đã ghi.
+- Chưa có `GEMINI_API_KEY`: sắp xếp mẫu theo dòng (mỗi dòng một bước, dòng “Lưu ý…” là lưu ý, “Cần làm… / [ ] …” là việc cần làm); ghi âm / ảnh / PDF cần Gemini.
+
 ## Telegram bot (một lần)
 
 1. Trên Telegram, nhắn **@BotFather** → `/newbot` → đặt tên (vd `WorkBrief AI`) và username kết thúc bằng `bot` (vd `WorkBriefAIBot`). BotFather trả về **token**.
@@ -182,6 +193,7 @@ Trên `chat.zalo.me`: bôi đen tin nhắn → chuột phải → **Gửi vào W
 | `/profile` | Hồ sơ: đổi họ tên, **đổi mật khẩu**, bật/tắt email nhắc việc & tự động đồng bộ Gmail |
 | `/calendar` | **Lịch** tháng theo hạn chót; kéo thả thẻ sang ngày khác để dời hạn (giữ giờ), kéo việc chưa có hạn vào lịch (17:00); mobile hiển thị dạng danh sách |
 | `/assistant` | **Trợ lý AI**: hỏi đáp về công việc của bạn ("việc nào quá hạn?", "chị Hương giao gì?"), có thẻ việc liên quan để mở nhanh |
+| `/guides` | **Sổ tay hướng dẫn**: ghi lại cách làm khi được chỉ việc (gõ / ghi âm / ảnh), AI sắp xếp thành các bước, lưu ý, việc cần làm; tìm kiếm, ghim, tạo công việc từ việc cần làm |
 | `/reports` | **Báo cáo tuần** do AI viết (hoàn thành / chưa xong & lý do / rủi ro / kế hoạch tuần tới), sửa được, copy hoặc gửi email |
 
 Trên mỗi thẻ công việc có nút **Soạn phản hồi**: AI soạn tin trả lời người giao việc (xác nhận, báo tiến độ, báo hoàn thành, xin lùi hạn, hỏi lại) cho Email hoặc Zalo; người dùng xem/sửa rồi tự gửi. Mỗi lần dùng AI (tóm tắt, báo cáo, soạn phản hồi, hỏi trợ lý) tốn 1 lượt quota.
@@ -239,6 +251,17 @@ Mọi response: `{ success, data, message }`. Các route (trừ login/refresh/he
 | POST   | `/meeting`        | `{ file?, text?, note? }` → `{ meetingTitle, summary, transcript, decisions, tasks }` (chưa lưu) |
 
 Integrations: `POST /integrations/telegram/link` (deep link 15 phút), `POST /integrations/telegram/unlink`, `POST /integrations/telegram/webhook` (Telegram gọi, xác thực header `X-Telegram-Bot-Api-Secret-Token`). Admin: `GET /admin/telegram`, `POST /admin/telegram/setup`.
+
+### Guides — `/api/guides`
+| Method | Path          | Mô tả |
+|--------|---------------|-------|
+| POST   | `/ai-extract` | `{ text?, file? }` → bản nháp `{ title, topic, taughtBy, colleagueId, summary, steps, tips, todos, rawNote }` (chưa lưu, 1 lượt AI) |
+| GET    | `/`           | `?search=&topic=&page=&limit=` → `{ items, topics, pagination }` (ghim lên đầu) |
+| POST   | `/`           | Lưu hướng dẫn |
+| GET    | `/:id`        | Chi tiết (kèm công việc đã tạo từ việc cần làm) |
+| PATCH  | `/:id`        | Sửa / ghim / tick việc cần làm |
+| DELETE | `/:id`        | Xoá (công việc đã tạo vẫn giữ) |
+| POST   | `/:id/tasks`  | `{ todoIds, priority?, deadline?, includeSteps? }` → tạo công việc nguồn `GUIDE` |
 
 ### Colleagues — `/api/colleagues`
 CRUD: `GET /`, `POST /`, `GET /:id`, `PATCH /:id`, `DELETE /:id`.

@@ -1,4 +1,4 @@
-import { CalendarClock, Mail, MessageCircle, Mic, PenLine, Send, Users } from "lucide-react";
+import { BookOpen, CalendarClock, Mail, MessageCircle, Mic, PenLine, Send, Users } from "lucide-react";
 import { Badge } from "@/components/ui/primitives";
 import type { TaskPriority, TaskSource, TaskStatus } from "@/lib/types";
 import {
@@ -13,7 +13,7 @@ import {
   STATUS_STYLE,
 } from "@/lib/utils";
 
-const SOURCE_ICON = { MANUAL: PenLine, GMAIL: Mail, ZALO: MessageCircle, TELEGRAM: Send, MEETING: Mic, TEAM: Users };
+const SOURCE_ICON = { MANUAL: PenLine, GMAIL: Mail, ZALO: MessageCircle, TELEGRAM: Send, MEETING: Mic, TEAM: Users, GUIDE: BookOpen };
 
 export function SourceBadge({ source }: { source: TaskSource }) {
   const Icon = SOURCE_ICON[source];

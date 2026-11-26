@@ -32,7 +32,7 @@ export function createApp({ beforeRoutes }: CreateAppOptions = {}) {
     }),
   );
   // File uploads (base64 images / PDF / audio) get a larger body limit than the rest of the API.
-  app.use(['/api/tasks/ai-summarize-file', '/api/ai/meeting'], express.json({ limit: '12mb' }));
+  app.use(['/api/tasks/ai-summarize-file', '/api/ai/meeting', '/api/guides/ai-extract'], express.json({ limit: '12mb' }));
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
   app.use(morgan(env.isProduction ? 'combined' : 'dev'));

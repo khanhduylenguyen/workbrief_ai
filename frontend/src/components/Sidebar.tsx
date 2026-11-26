@@ -2,6 +2,7 @@
 
 import {
   BarChart3,
+  BookOpen,
   Bot,
   CalendarClock,
   CalendarDays,
@@ -31,6 +32,7 @@ const NAV = [
   { href: "/calendar", label: "Lịch", icon: CalendarDays },
   { href: "/assistant", label: "Trợ lý AI", icon: Bot },
   { href: "/meetings", label: "Họp → Việc", icon: Mic },
+  { href: "/guides", label: "Sổ tay hướng dẫn", icon: BookOpen },
   { href: "/team", label: "Nhóm", icon: UsersRound },
   { href: "/reports", label: "Báo cáo tuần", icon: FileText },
   { href: "/analytics", label: "Thống kê", icon: BarChart3 },

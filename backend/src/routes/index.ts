@@ -9,6 +9,7 @@ import colleagueRoutes from './colleague.routes';
 import integrationRoutes from './integration.routes';
 import taskRoutes from './task.routes';
 import teamRoutes from './team.routes';
+import guideRoutes from './guide.routes';
 
 const router = Router();
 
@@ -33,5 +34,6 @@ router.use('/integrations', integrationRoutes);
 router.use('/cron', cronRoutes);
 router.use('/ai', aiRoutes);
 router.use('/team', teamRoutes);
+router.use('/guides', guideRoutes);
 
 export default router;

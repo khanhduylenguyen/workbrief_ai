@@ -28,6 +28,7 @@ const SOURCE_LABEL: Record<TaskSource, string> = {
   TELEGRAM: 'tin nhắn Telegram',
   MEETING: 'ghi chép cuộc họp',
   TEAM: 'việc trưởng nhóm giao',
+  GUIDE: 'sổ tay hướng dẫn',
 };
 
 const SYSTEM_INSTRUCTION = `Bạn là trợ lý tóm tắt công việc cho nhân viên văn phòng Việt Nam.
